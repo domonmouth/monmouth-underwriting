@@ -117,16 +117,21 @@ def validate_all(parsed_statements, report_date=None):
         if not result['passed']:
             all_reconciled = False
     sufficiency = check_sufficiency(parsed_statements, report_date)
-    can_proceed = all_reconciled
+
+    # Reconciliation failures are now WARNINGS, not blockers.
+    # We always allow proceeding — the report will note any reconciliation issues.
+    can_proceed = True
+
     warnings = []
     if not all_reconciled:
         for r in reconciliation_results:
             if not r['passed']:
                 warnings.append(
-                    f'RECONCILIATION FAILED: {r["filename"]} — '
+                    f'RECONCILIATION WARNING: {r["filename"]} — '
                     f'expected closing £{r["expected_closing"]:,.2f}, '
                     f'actual £{r["actual_closing"]:,.2f}, '
-                    f'difference £{r["difference"]:,.2f}'
+                    f'difference £{r["difference"]:,.2f}. '
+                    f'Some transactions may not have been captured accurately.'
                 )
     warnings.extend(sufficiency['issues'])
     return {

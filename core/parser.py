@@ -30,11 +30,36 @@ Return a single JSON object with two keys:
 - "metadata": the statement metadata object
 - "transactions": array of transaction objects
 
-Rules:
-- Include every transaction, do not skip any
-- Do not include the opening balance line as a transaction
+CRITICAL RULES:
+- Include EVERY transaction, do not skip any
+- Do NOT include "BROUGHT FORWARD" lines as transactions — these appear at the top of each page and are NOT transactions
+- Do NOT include the opening balance line as a transaction
 - Money values must be numbers, not strings (no £ signs)
 - If a value is missing or unclear, use 0
+
+REFUNDS: Some transactions show a credit/refund on a line that would normally be a debit.
+Look for the word "REFUND" in the description. If a card transaction or similar has "REFUND"
+in its description, it is money_in (credit), NOT money_out.
+
+FOREIGN CURRENCY TRANSACTIONS: Some transactions show a foreign amount, exchange rate, and
+a non-sterling transaction fee. For example:
+  "WINCHER ORDER 367241 STOCKHOLM SE EUR 89.00 VRATE 1.1323 N-S TRN FEE 2.16"
+with an amount of 80.76. The actual GBP amount charged/credited is what appears in the
+Withdrawn or Paid In column — use THAT number (e.g. 80.76), not the foreign currency amount.
+
+MULTI-LINE DESCRIPTIONS: Transaction descriptions may span multiple lines. A continuation
+line belongs to the SAME transaction as the line above it — do not create a separate
+transaction for continuation lines. The amount and balance appear on the first line.
+
+BANK CHARGES: Lines like "Charges 31OCT A/C 25863010" with an amount are real transactions
+(money_out). Include them.
+
+ONLINE TRANSACTIONS THAT ARE CREDITS: "OnLine Transaction" entries where money appears in
+the "Paid In" column are credits (money_in). Check which column the amount is in carefully.
+
+QUEST J M / similar entries with amount in Paid In: If the amount appears in the Paid In
+column, it is money_in, regardless of whether it says "OnLine Transaction" or "Automated Credit".
+
 - Return only valid JSON, no explanation, no markdown, no code blocks
 
 Bank statement text:

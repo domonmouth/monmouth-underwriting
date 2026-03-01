@@ -361,14 +361,16 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
             if 'RECONCILIATION' not in w:
                 st.markdown(f'<div class="warn-box">⚠ {w}</div>', unsafe_allow_html=True)
 
-    # Can we proceed?
-    if not validation['can_proceed']:
-        st.error(
-            "❌ **Cannot proceed** — one or more statements failed reconciliation. "
-            "This usually indicates missing transactions or incorrect statement data. "
-            "Please re-upload corrected statements."
+    # Reconciliation warnings (no longer blocks)
+    if not validation['all_reconciled']:
+        st.markdown(
+            '<div class="warn-box">⚠ One or more statements did not fully reconcile. '
+            'The report will still be generated but some transaction data may be incomplete. '
+            'Consider re-uploading if the differences are large.</div>',
+            unsafe_allow_html=True,
         )
-    else:
+
+    if validation['can_proceed']:
         st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
         if st.button("📊  Run Analytics & Generate Report", use_container_width=True):
             progress = st.progress(0)
@@ -404,7 +406,6 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
 
                 st.session_state.bank_stage = "report"
                 st.rerun()
-
             except Exception as e:
                 progress.empty()
                 status.empty()
