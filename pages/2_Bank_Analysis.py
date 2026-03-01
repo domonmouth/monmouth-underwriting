@@ -115,7 +115,7 @@ else:
 st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 st.markdown(
     "<p style='text-align:center;color:#666;font-size:14px;margin-bottom:24px'>"
-    "Upload Barclays PDF bank statements to generate a credit analysis report.</p>",
+    "Upload PDF bank statements to generate a credit analysis report.</p>",
     unsafe_allow_html=True,
 )
 
