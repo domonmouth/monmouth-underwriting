@@ -14,6 +14,10 @@ MIN_LOAN       = 10_000
 MAX_LOAN       = 50_000
 DSCR_BUFFER    = 1.5
 
+def fmt_money(v):
+    """Simple £ formatter for reason strings."""
+    return f'£{v:,.0f}'
+
 GAMBLING_KEYWORDS = [
     'bet365', 'betfair', 'paddy power', 'william hill', 'ladbrokes',
     'coral', 'sky bet', 'betway', 'unibet', '888sport', 'betfred',
@@ -248,45 +252,89 @@ def principal_to_pmt(principal, r=MONTHLY_RATE, n=N_MONTHS):
     return principal * r / (1 - (1 + r) ** (-n))
 
 
-def calc_affordability(monthly_in, monthly_out, anomaly_amount=0, anomaly_month_idx=None):
+def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels=None):
+    """Calculate both unadjusted (all receipts) and adjusted (excluding anomalous) affordability."""
     n = len(monthly_in)
+
+    # --- UNADJUSTED (all receipts included) ---
+    unadj_avg_in_full  = sum(monthly_in) / n
+    unadj_avg_out_full = sum(monthly_out) / n
+    unadj_surplus_full = unadj_avg_in_full - unadj_avg_out_full
+    unadj_avg_in_3m    = sum(monthly_in[-3:]) / 3
+    unadj_avg_out_3m   = sum(monthly_out[-3:]) / 3
+    unadj_surplus_3m   = unadj_avg_in_3m - unadj_avg_out_3m
+
+    unadj_max_pmt_full = max(0, unadj_surplus_full / DSCR_BUFFER)
+    unadj_max_pmt_3m   = max(0, unadj_surplus_3m   / DSCR_BUFFER)
+    unadj_max_loan_full_dscr = min(MAX_LOAN, pmt_to_principal(unadj_max_pmt_full))
+    unadj_max_loan_3m_dscr   = min(MAX_LOAN, pmt_to_principal(unadj_max_pmt_3m))
+    unadj_max_loan_full_zero = min(MAX_LOAN, pmt_to_principal(max(0, unadj_surplus_full)))
+    unadj_max_loan_3m_zero   = min(MAX_LOAN, pmt_to_principal(max(0, unadj_surplus_3m)))
+
+    # --- ADJUSTED (anomalous receipts excluded) ---
     adj_in = list(monthly_in)
-    if anomaly_amount > 0 and anomaly_month_idx is not None:
-        adj_in[anomaly_month_idx] = max(0, adj_in[anomaly_month_idx] - anomaly_amount)
-    avg_in_full  = sum(adj_in) / n
-    avg_out_full = sum(monthly_out) / n
-    surplus_full = avg_in_full - avg_out_full
-    adj_in_3m  = sum(adj_in[-3:]) / 3
-    avg_out_3m = sum(monthly_out[-3:]) / 3
-    surplus_3m = adj_in_3m - avg_out_3m
-    max_pmt_full = max(0, surplus_full / DSCR_BUFFER)
-    max_pmt_3m   = max(0, surplus_3m   / DSCR_BUFFER)
-    max_loan_full_dscr = min(MAX_LOAN, pmt_to_principal(max_pmt_full))
-    max_loan_3m_dscr   = min(MAX_LOAN, pmt_to_principal(max_pmt_3m))
-    max_loan_full_zero = min(MAX_LOAN, pmt_to_principal(max(0, surplus_full)))
-    max_loan_3m_zero   = min(MAX_LOAN, pmt_to_principal(max(0, surplus_3m)))
+    if anomalous_txs and month_labels:
+        for atx in anomalous_txs:
+            amt = atx['money_in']
+            midx = atx.get('_month_idx')
+            if midx is not None and 0 <= midx < n:
+                adj_in[midx] = max(0, adj_in[midx] - amt)
+
+    adj_avg_in_full  = sum(adj_in) / n
+    adj_avg_out_full = sum(monthly_out) / n
+    adj_surplus_full = adj_avg_in_full - adj_avg_out_full
+    adj_avg_in_3m    = sum(adj_in[-3:]) / 3
+    adj_avg_out_3m   = sum(monthly_out[-3:]) / 3
+    adj_surplus_3m   = adj_avg_in_3m - adj_avg_out_3m
+
+    adj_max_pmt_full = max(0, adj_surplus_full / DSCR_BUFFER)
+    adj_max_pmt_3m   = max(0, adj_surplus_3m   / DSCR_BUFFER)
+    adj_max_loan_full_dscr = min(MAX_LOAN, pmt_to_principal(adj_max_pmt_full))
+    adj_max_loan_3m_dscr   = min(MAX_LOAN, pmt_to_principal(adj_max_pmt_3m))
+    adj_max_loan_full_zero = min(MAX_LOAN, pmt_to_principal(max(0, adj_surplus_full)))
+    adj_max_loan_3m_zero   = min(MAX_LOAN, pmt_to_principal(max(0, adj_surplus_3m)))
+
     pmt_10k = principal_to_pmt(10_000)
     pmt_25k = principal_to_pmt(25_000)
     pmt_50k = principal_to_pmt(50_000)
+
+    total_excluded = sum(atx['money_in'] for atx in (anomalous_txs or []))
+
     return {
-        'avg_in_full':        round(avg_in_full),
-        'avg_out_full':       round(avg_out_full),
-        'surplus_full':       round(surplus_full),
-        'avg_in_3m':          round(adj_in_3m),
-        'avg_out_3m':         round(avg_out_3m),
-        'surplus_3m':         round(surplus_3m),
-        'max_pmt_full':       round(max_pmt_full),
-        'max_pmt_3m':         round(max_pmt_3m),
-        'max_loan_full_dscr': round(max_loan_full_dscr / 100) * 100,
-        'max_loan_3m_dscr':   round(max_loan_3m_dscr   / 100) * 100,
-        'max_loan_full_zero': round(max_loan_full_zero  / 100) * 100,
-        'max_loan_3m_zero':   round(max_loan_3m_zero    / 100) * 100,
+        # Unadjusted
+        'unadj_avg_in_full':        round(unadj_avg_in_full),
+        'unadj_avg_out_full':       round(unadj_avg_out_full),
+        'unadj_surplus_full':       round(unadj_surplus_full),
+        'unadj_avg_in_3m':          round(unadj_avg_in_3m),
+        'unadj_avg_out_3m':         round(unadj_avg_out_3m),
+        'unadj_surplus_3m':         round(unadj_surplus_3m),
+        'unadj_max_pmt_full':       round(unadj_max_pmt_full),
+        'unadj_max_pmt_3m':         round(unadj_max_pmt_3m),
+        'unadj_max_loan_full_dscr': round(unadj_max_loan_full_dscr / 100) * 100,
+        'unadj_max_loan_3m_dscr':   round(unadj_max_loan_3m_dscr   / 100) * 100,
+        'unadj_max_loan_full_zero': round(unadj_max_loan_full_zero  / 100) * 100,
+        'unadj_max_loan_3m_zero':   round(unadj_max_loan_3m_zero    / 100) * 100,
+        # Adjusted
+        'avg_in_full':        round(adj_avg_in_full),
+        'avg_out_full':       round(adj_avg_out_full),
+        'surplus_full':       round(adj_surplus_full),
+        'avg_in_3m':          round(adj_avg_in_3m),
+        'avg_out_3m':         round(adj_avg_out_3m),
+        'surplus_3m':         round(adj_surplus_3m),
+        'max_pmt_full':       round(adj_max_pmt_full),
+        'max_pmt_3m':         round(adj_max_pmt_3m),
+        'max_loan_full_dscr': round(adj_max_loan_full_dscr / 100) * 100,
+        'max_loan_3m_dscr':   round(adj_max_loan_3m_dscr   / 100) * 100,
+        'max_loan_full_zero': round(adj_max_loan_full_zero  / 100) * 100,
+        'max_loan_3m_zero':   round(adj_max_loan_3m_zero    / 100) * 100,
+        # Reference
         'pmt_10k':            round(pmt_10k),
         'pmt_25k':            round(pmt_25k),
         'pmt_50k':            round(pmt_50k),
         'annual_rate':        ANNUAL_RATE,
         'monthly_rate':       MONTHLY_RATE,
         'n_months':           N_MONTHS,
+        'total_excluded':     round(total_excluded),
     }
 
 
@@ -438,24 +486,44 @@ def run_analytics(parsed_statements):
     avg_monthly_in = sum(monthly_in) / n_months if n_months else 0
     large_inflows  = sorted([t for t in transactions if t['money_in'] > avg_monthly_in * 2],
                              key=lambda x: -x['money_in'])
+
+    # Build list of ALL anomalous receipts with month index and exclusion reason
+    anomalous_txs = []
+    for tx in large_inflows:
+        for fmt in ('%d/%m/%y', '%d/%m/%Y'):
+            try:
+                dt = datetime.strptime(tx['date'], fmt)
+                label = dt.strftime('%b-%y')
+                midx = month_labels.index(label) if label in month_labels else None
+                anomalous_txs.append({
+                    **tx,
+                    '_month_idx': midx,
+                    '_reason': f'Exceeds 2× avg monthly inflow ({fmt_money(avg_monthly_in)})',
+                })
+                break
+            except ValueError:
+                continue
+
+    # Legacy single-anomaly fields (kept for backward compat with credit summary)
     anomaly_amount    = 0
     anomaly_month_idx = None
     if large_inflows:
         biggest = large_inflows[0]
         anomaly_amount = biggest['money_in']
-        for fmt in ('%d/%m/%y', '%d/%m/%Y'):
+        for fmtstr in ('%d/%m/%y', '%d/%m/%Y'):
             try:
-                dt = datetime.strptime(biggest['date'], fmt)
+                dt = datetime.strptime(biggest['date'], fmtstr)
                 label = dt.strftime('%b-%y')
                 if label in month_labels:
                     anomaly_month_idx = month_labels.index(label)
                 break
             except ValueError:
                 continue
+
     affordability = calc_affordability(
         monthly_in, monthly_out,
-        anomaly_amount=anomaly_amount,
-        anomaly_month_idx=anomaly_month_idx
+        anomalous_txs=anomalous_txs,
+        month_labels=month_labels,
     )
     gambling      = check_gambling(transactions)
     sanctions     = check_sanctions(transactions)
@@ -488,6 +556,8 @@ def run_analytics(parsed_statements):
         'anomaly_amount': anomaly_amount,
         'anomaly_tx': large_inflows[0] if large_inflows else None,
         'anomaly_month_idx': anomaly_month_idx,
+        'anomalous_txs': anomalous_txs,
+        'avg_monthly_in': round(avg_monthly_in),
         'affordability': affordability,
         'gambling': gambling, 'sanctions': sanctions,
         'salary': salary, 'low_balance': low_balance,
