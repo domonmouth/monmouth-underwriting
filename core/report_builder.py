@@ -3,7 +3,7 @@ report_builder.py
 Generates a self-contained HTML credit report from analytics output.
 Matches the correct light-theme Monmouth Group credit analysis tool design.
 
-Section map (matching correct ZPE report):
+Section map:
   §1  Header Banner
   §2  Credit Officer Summary
   §3  Methodology Strip
@@ -14,9 +14,9 @@ Section map (matching correct ZPE report):
   §5c Closing Balance Trend
   §5d Loan Affordability Analysis
   §6  Monthly Category Breakdown
-  §7  Lender Activity (7a confirmed, 7b non-lending)
+  §7  Lender Activity (7a confirmed, 7b suspected, 7c non-lending)
   §8  Notable Large Transactions
-  §9  Failed & Flagged Transactions (9a bounced, 9b fees, 9c connected party)
+  §9  Failed & Flagged Transactions (9a bounced, 9b fees/OD costs, 9c connected party)
   §10 Credit Risk Flags
   §11 Credit Decision Summary
   Footer
@@ -50,8 +50,32 @@ def fmt_signed_html(v):
     return '£0'
 
 
+def _get_confirmed_lenders(d):
+    """Safely get confirmed lenders from new or old data format."""
+    lenders = d.get('lenders', {})
+    if 'confirmed' in lenders:
+        return lenders['confirmed']
+    # Legacy format: flat dict of lender name -> data
+    return {k: v for k, v in lenders.items() if isinstance(v, dict) and v.get('total', v.get('total_out', 0)) > 0}
+
+
+def _get_suspected_lenders(d):
+    """Safely get suspected lenders from new data format."""
+    lenders = d.get('lenders', {})
+    if 'suspected' in lenders:
+        return lenders['suspected']
+    return {}
+
+
+def _active_confirmed(d):
+    """Get list of active confirmed lenders (with activity)."""
+    confirmed = _get_confirmed_lenders(d)
+    return {k: v for k, v in confirmed.items()
+            if (v.get('total_out', 0) + v.get('total_in', 0) + v.get('total', 0)) > 0}
+
+
 # ============================================================
-# CSS — exact match to correct ZPE report
+# CSS — exact match to correct report design
 # ============================================================
 
 CSS = """
@@ -137,17 +161,25 @@ body {
   font-family: var(--mono);
   font-size: 13px;
   font-weight: 600;
+}
+.pill-green {
   background: rgba(134,239,172,0.18);
   border: 1px solid rgba(134,239,172,0.5);
   color: #86efac;
+}
+.pill-amber {
+  background: rgba(251,191,36,0.18);
+  border: 1px solid rgba(251,191,36,0.5);
+  color: #fbbf24;
 }
 .confidence-pill .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #86efac;
   animation: pulse 2s infinite;
 }
+.pill-green .dot { background: #86efac; }
+.pill-amber .dot { background: #fbbf24; }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
@@ -407,6 +439,15 @@ tr:hover td { background: rgba(2,132,199,0.04); }
   background: #e0f2fe;
   color: #0369a1;
 }
+.suspected-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-family: var(--mono);
+  border-radius: 3px;
+  background: #fef3c7;
+  color: #b45309;
+}
 
 h2.sub-section {
   font-size: 12px;
@@ -443,6 +484,24 @@ h2.sub-section {
 def section_header(d):
     n   = d['n_months']
     now = datetime.now().strftime('%d/%m/%y')
+
+    # Dynamic reconciliation status
+    validation = d.get('validation')
+    if validation:
+        all_recon = validation.get('all_reconciled', True)
+        total_stmts = len(validation.get('reconciliation_results', []))
+    else:
+        all_recon = True
+        total_stmts = n
+
+    if all_recon:
+        pill_cls = 'pill-green'
+        pill_text = f'✓ 100% Reconciled — All {total_stmts} Months'
+    else:
+        failed = sum(1 for r in validation.get('reconciliation_results', []) if not r['passed'])
+        pill_cls = 'pill-amber'
+        pill_text = f'⚠ {total_stmts - failed}/{total_stmts} Reconciled — {failed} Warning(s)'
+
     return f"""
 <div class="header-banner">
   <div class="header-top">
@@ -454,9 +513,9 @@ def section_header(d):
         Generated: {now}
       </div>
     </div>
-    <div class="confidence-pill">
+    <div class="confidence-pill {pill_cls}">
       <div class="dot"></div>
-      ✓ 100% Reconciled — All {n} Months
+      {pill_text}
     </div>
   </div>
   <div class="header-period">
@@ -486,17 +545,21 @@ def section_header(d):
 
 def section_credit_summary(d):
     aff     = d['affordability']
-    lenders = d['lenders']
     fdd     = d['failed_dds']
     gam     = d['gambling']
     san     = d['sanctions']
     anomaly = d['anomaly_tx']
     n       = d['n_months']
 
-    active = [v for v in lenders.values() if v['total'] > 0]
+    active = _active_confirmed(d)
     n_lenders = len(active)
-    lender_str = ' · '.join(v['name'] for v in active) if active else 'None identified'
+    lender_str = ' · '.join(v['name'] for v in active.values()) if active else 'None identified'
     debt_svc = fmt(d['existing_debt_svc'])
+
+    # Overdraft warning in summary
+    od_note = ''
+    if aff.get('persistent_overdraft'):
+        od_note = f' <strong>Account operates on permanent overdraft (avg daily balance {fmt(d["avg_bal_full"])}).</strong>'
 
     anomaly_note = ''
     if anomaly:
@@ -509,10 +572,18 @@ def section_credit_summary(d):
             + (' — meaning no supportable lending amount can be calculated from observable recurring cash flow alone.' if aff['surplus_full'] < 0 else '.')
         )
 
-    dd_note   = f' {fdd["count"]} bounced DD(s) noted.' if fdd['count'] > 0 else ' No failed direct debits.'
+    # Bounced summary
+    bounced = d.get('bounced', {})
+    total_bounced = bounced.get('total_confirmed', 0) + bounced.get('total_suspected', 0)
+    dd_note = f' {total_bounced} bounced/returned payment(s) noted.' if total_bounced > 0 else ' No failed direct debits.'
+
     gam_note  = f' Gambling transactions detected.' if gam['found'] else ' No gambling detected.'
     san_note  = ' No sanctioned jurisdictions.' if san['clean'] else ' ⚠ Potential sanctions hits — review required.'
     me_note   = f' {len(san["middle_east_txs"])} Middle East transaction(s) identified.' if san['middle_east_txs'] else ''
+
+    # HMRC TTP
+    ttp = d.get('hmrc_ttp', {})
+    ttp_note = ' <strong>⚠ HMRC Time to Pay / NDDS arrangement detected.</strong>' if ttp.get('found') else ''
 
     return f"""
 <div class="credit-alert">
@@ -521,7 +592,7 @@ def section_credit_summary(d):
     {d['account_name']} operates a business current account (Sort {d['sort_code']} · A/C {d['account_number']})
     opening at {fmt(d['opening_bal'])} in {d['month_labels'][0]} and closing at {fmt(d['closing_bal'])} in {d['month_labels'][-1]}.
     {n_lenders} confirmed lender{'s' if n_lenders != 1 else ''} identified: {lender_str} —
-    combined ongoing debt service ~{debt_svc}/month.{anomaly_note}
+    combined ongoing debt service ~{debt_svc}/month.{od_note}{anomaly_note}{ttp_note}
     {dd_note}{gam_note}{san_note}{me_note}
   </p>
 </div>"""
@@ -561,7 +632,7 @@ def section_methodology(d):
   </div>
   <div class="method-item">
     <label>Caveats</label>
-    <span>Statement periods may overlap by 1 day (month-end = next month open). Anomaly detection threshold: 2× average monthly inflow.</span>
+    <span>Statement periods may overlap by 1 day (month-end = next month open). Anomaly detection threshold: 2× average monthly inflow. Lender detection: 206-entry registry + fuzzy keyword matching.</span>
   </div>
   <div class="method-item">
     <label>Date Format</label>
@@ -577,13 +648,12 @@ def section_methodology(d):
 def section_data_quality(d):
     validation = d.get('validation')
     if not validation:
-        return ''  # No validation data available — skip section
+        return ''
 
     recon_results = validation.get('reconciliation_results', [])
     all_reconciled = validation.get('all_reconciled', True)
 
     if all_reconciled:
-        # All passed — show a clean green confirmation, no table needed
         return f"""
 <div class="chart-card">
   <div class="section-title">§3b · Data Quality — Reconciliation Status</div>
@@ -594,7 +664,6 @@ def section_data_quality(d):
   </div>
 </div>"""
 
-    # One or more failures — show detailed table
     passed_count = sum(1 for r in recon_results if r['passed'])
     failed_count = len(recon_results) - passed_count
     total_diff   = sum(r['difference'] for r in recon_results if not r['passed'])
@@ -662,15 +731,22 @@ def section_data_quality(d):
 def section_metrics(d):
     aff      = d['affordability']
     fdd      = d['failed_dds']
-    lenders  = d['lenders']
-    n_active = len([v for v in lenders.values() if v['total'] > 0])
-    names    = ' · '.join(v['name'] for v in lenders.values() if v['total'] > 0) or 'None identified'
     n        = d['n_months']
     months_3 = d['month_labels'][-3:]
+
+    active = _active_confirmed(d)
+    n_active = len(active)
+    names = ' · '.join(v['name'] for v in active.values()) or 'None identified'
 
     dd_ind = 'ind-red' if fdd['count'] > 0 else 'ind-green'
     stmt_ind = 'ind-amber' if n < 6 else 'ind-green'
     stmt_sub = f'⚠ Below 6-month requirement — {6-n} month(s) short' if n < 6 else f'{n} months provided — meets requirement'
+
+    # Avg balance indicator — red if negative (overdraft)
+    avg_bal_ind = 'ind-red' if d['avg_bal_full'] < 0 else 'ind-green'
+    avg_bal_sub = 'Forward-filled across full period'
+    if d['avg_bal_full'] < 0:
+        avg_bal_sub = '⚠ Persistent overdraft — see §5d'
 
     cards = [
         ('ind-blue',  'Current Balance',          fmt(d['closing_bal']),           f'{d["period_end"]} closing'),
@@ -678,7 +754,7 @@ def section_metrics(d):
         ('ind-amber', 'Confirmed Lenders',         str(n_active),                   names[:65] + ('…' if len(names) > 65 else '')),
         (dd_ind,      'Failed / Returned DDs',    'YES' if fdd['count'] > 0 else 'NONE',
                       f'{fdd["count"]} event(s) — see §9' if fdd['count'] > 0 else 'No failed DDs in period'),
-        ('ind-green', f'Avg Daily Balance ({n}m)', fmt(d['avg_bal_full']),          'Forward-filled across full period'),
+        (avg_bal_ind, f'Avg Daily Balance ({n}m)', fmt(d['avg_bal_full']),          avg_bal_sub),
         ('ind-blue',  'Avg Daily Balance (3m)',    fmt(d['avg_bal_3m']),            f'{" – ".join([months_3[0], months_3[-1]])}'),
         ('ind-blue',  'Total Payments IN',         fmt(sum(d['monthly_in'])),       f'{n}-month aggregate'),
         ('ind-amber', 'Total Payments OUT',        fmt(sum(d['monthly_out'])),      f'{n}-month aggregate'),
@@ -698,7 +774,7 @@ def section_metrics(d):
 
 
 # ============================================================
-# §5a–§5c CHARTS (inline JS matching correct report structure)
+# §5a–§5c CHARTS (inline JS)
 # ============================================================
 
 def section_charts(d):
@@ -714,7 +790,6 @@ def section_charts(d):
     avg_intra   = [round(v) if v else 0 for v in d['avg_intramonth']]
     month_names = d['month_labels']
 
-    # Build intra-month datasets as JS arrays
     intra_js_arrays = '[' + ','.join(str([round(v) if v else 0 for v in mv]) for mv in intra_data) + ']'
     month_names_js  = str(month_names)
 
@@ -749,9 +824,6 @@ def section_charts(d):
 </div>
 
 <script>
-// ============================================================
-// §5a: Daily Cash Position Chart
-// ============================================================
 const labels = {dl};
 const values = {dv};
 const ctx = document.getElementById('cashChart').getContext('2d');
@@ -804,9 +876,6 @@ new Chart(ctx, {{
   }}
 }});
 
-// ============================================================
-// §5b: Intra-Month Balance Profile
-// ============================================================
 const intraRaw   = {intra_js_arrays};
 const avgIntra   = {avg_intra};
 const monthNames = {month_names_js};
@@ -863,9 +932,6 @@ new Chart(ctx2, {{
   }}
 }});
 
-// ============================================================
-// §5c: Closing Balance Trend
-// ============================================================
 const closingVals   = {closing_vals};
 const closingColors = closingVals.map((v, i) =>
   i === 0 ? 'rgba(2,132,199,0.7)' :
@@ -920,7 +986,15 @@ def section_affordability(d):
     n       = d['n_months']
     months_3 = f'{d["month_labels"][-3]} – {d["month_labels"][-1]}' if n >= 3 else d['month_labels'][-1]
 
-    # Red warning box (if any anomalous receipts detected)
+    # Overdraft warning box
+    od_warning = ''
+    if aff.get('persistent_overdraft'):
+        od_warning = f"""
+  <div style="padding:12px 16px; background:#fee2e2; border:1px solid #fca5a5; border-radius:6px; margin-bottom:16px; font-size:13px; color:#7f1d1d;">
+    <strong>⚠ PERSISTENT OVERDRAFT:</strong> {aff.get('overdraft_warning', 'Account operates on permanent overdraft. Reported surplus represents reduction in overdraft depth, not free cash for new debt service.')}
+  </div>"""
+
+    # Anomaly warning box
     if anomalous_txs:
         total_excluded = aff.get('total_excluded', 0)
         count = len(anomalous_txs)
@@ -928,7 +1002,7 @@ def section_affordability(d):
         warning_box = f"""
   <div style="padding:12px 16px; background:#fee2e2; border:1px solid #fca5a5; border-radius:6px; margin-bottom:16px; font-size:13px; color:#7f1d1d;">
     <strong>⚠ KEY FINDING:</strong> {count} anomalous receipt{'s' if count != 1 else ''} totalling {fmt(total_excluded)} detected
-    (each exceeding 2× average monthly inflow).
+    (each exceeding 2× average monthly inflow or identified as lender drawdown).
     Excluding these, adjusted outflows {direction} adjusted inflows across both {n}-month and 3-month windows.
     {'This means the business cannot demonstrably service new debt from its observable recurring cash flow. The affordability picture is entirely dependent on whether the anomalous receipts represent regular trading income. CO must resolve this before any lending decision.' if aff['surplus_full'] < 0 else 'Both unadjusted and adjusted figures are shown below — CO should determine which basis is appropriate.'}
   </div>"""
@@ -964,7 +1038,6 @@ def section_affordability(d):
       </table>
     </div>"""
 
-    # --- UNADJUSTED boxes (all receipts) ---
     box_unadj_full = aff_box(
         f'{n}-Month Average (Unadjusted — All Receipts)',
         aff['unadj_avg_in_full'], aff['unadj_avg_out_full'], aff['unadj_surplus_full'],
@@ -978,7 +1051,6 @@ def section_affordability(d):
         in_label='Avg monthly IN (all)',
     )
 
-    # --- ADJUSTED boxes (anomalous excluded) ---
     box_adj_full = aff_box(
         f'{n}-Month Average (Adjusted — Anomalies Excluded)',
         aff['avg_in_full'], aff['avg_out_full'], aff['surplus_full'],
@@ -992,7 +1064,6 @@ def section_affordability(d):
         in_label='Avg monthly IN (adj.)',
     )
 
-    # --- Anomalous receipts table ---
     if anomalous_txs:
         rows = ''
         for i, atx in enumerate(anomalous_txs, 1):
@@ -1052,10 +1123,11 @@ def section_affordability(d):
 <div class="chart-card">
   <div class="section-title">§5d · Loan Affordability Analysis — 60% APR, 12-Month Term</div>
   <p style="font-size:12px; color:var(--text-dim); margin-bottom:16px;">
-    Unadjusted figures include all receipts. Adjusted figures exclude anomalous receipts (see table below).
+    Unadjusted figures include all receipts. Adjusted figures exclude anomalous receipts and lender drawdowns (see table below).
     Existing confirmed debt service ~{fmt(d['existing_debt_svc'])}/month.
     Monthly surplus = average inflows minus average outflows. Maximum loan shown at 1.5× DSCR buffer and at zero headroom. All figures rounded to nearest £100.
   </p>
+  {od_warning}
   {warning_box}
 
   <div style="font-size:11px; font-family:var(--mono); color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin:16px 0 8px; font-weight:600;">Unadjusted — All Receipts Included</div>
@@ -1097,11 +1169,13 @@ def section_monthly_breakdown(d):
         'Director/Connected Party Injections',
         'Connected Party Receipts',
         'Unsecured Loan Drawdowns',
+        'Returned / Reversed Payments',
     ]
     CAT_OUTFLOW = [
         'Unsecured Loan Repayments',
         'Asset Finance Repayments',
         'HMRC PAYE / NIC',
+        'HMRC Payments',
         'Pension',
         'Wages / Payroll',
         'Rent',
@@ -1115,7 +1189,6 @@ def section_monthly_breakdown(d):
         vals = monthly.get(cat, [0] * n)
         total = sum(vals)
         if total == 0:
-            # Still show zero-rows for core categories for completeness
             show_zero = cat in ('Unsecured Loan Drawdowns', 'Unpaid Item Fees')
             if not show_zero:
                 return ''
@@ -1180,29 +1253,64 @@ def section_monthly_breakdown(d):
 # ============================================================
 
 def section_lenders(d):
-    lenders   = d['lenders']
-    active    = [v for v in lenders.values() if v['total'] > 0]
-    non_lend  = d.get('non_lending_finance', [])  # e.g. pension, SIPP
+    confirmed = _active_confirmed(d)
+    suspected = _get_suspected_lenders(d)
+    active_suspected = {k: v for k, v in suspected.items()
+                        if (v.get('total_out', 0) + v.get('total_in', 0)) > 0}
+    non_lend  = d.get('non_lending_finance', [])
     n         = d['n_months']
 
-    if not active:
+    # 7a — Confirmed lenders
+    if not confirmed:
         lender_rows = '<tr><td colspan="7" style="color:var(--text-dim); font-style:italic;">No confirmed lending counterparties identified from statement patterns.</td></tr>'
     else:
         lender_rows = ''
-        for v in active:
-            avg = round(v['total'] / n) if n else 0
+        for v in confirmed.values():
+            total_out = v.get('total_out', v.get('total', 0))
+            total_in  = v.get('total_in', 0)
+            net = total_in - total_out
+            avg = round(total_out / n) if n else 0
+            count = v.get('count_out', v.get('count', 0)) + v.get('count_in', 0)
             lender_rows += f"""
       <tr>
         <td><strong>{v['name']}</strong></td>
         <td><span class="lender-tag">{v['product']}</span></td>
-        <td class="num">—</td>
-        <td class="num neg">{fmt(v['total'])}</td>
-        <td class="num neg">-{fmt(v['total'])}</td>
-        <td>{v['count']} payment(s) across period</td>
-        <td>{fmt(avg)}/month average</td>
+        <td class="num {'pos' if total_in > 0 else ''}">{fmt(total_in) if total_in > 0 else '—'}</td>
+        <td class="num neg">{fmt(total_out) if total_out > 0 else '—'}</td>
+        <td class="num {'pos' if net > 0 else 'neg'}">{fmt(net)}</td>
+        <td>{count} payment(s) across period</td>
+        <td>{fmt(avg)}/month avg repayment</td>
       </tr>"""
 
-    # Non-lending finance counterparties (pension, etc.)
+    # 7b — Suspected lenders
+    if active_suspected:
+        suspected_rows = ''
+        for v in active_suspected.values():
+            total_out = v.get('total_out', 0)
+            total_in  = v.get('total_in', 0)
+            count = v.get('count_out', 0) + v.get('count_in', 0)
+            suspected_rows += f"""
+      <tr>
+        <td>{v['name']}</td>
+        <td><span class="suspected-tag">SUSPECTED — REVIEW</span></td>
+        <td class="num">{fmt(total_in) if total_in > 0 else '—'}</td>
+        <td class="num neg">{fmt(total_out) if total_out > 0 else '—'}</td>
+        <td>{count} transaction(s)</td>
+        <td>Fuzzy keyword match — CO to verify</td>
+      </tr>"""
+        suspected_section = f"""
+  <h2 class="sub-section">7b — Suspected Lenders ({len(active_suspected)}) — Manual Review Required</h2>
+  <p style="font-size:12px; color:var(--text-dim); margin-bottom:12px;">Counterparties matched by fuzzy keyword detection (e.g. 'finance', 'capital', 'lending' in description). Not confirmed as lenders — CO must verify.</p>
+  <table>
+    <thead>
+      <tr><th>Counterparty</th><th>Status</th><th class="num">Total IN</th><th class="num">Total OUT</th><th>Activity</th><th>Note</th></tr>
+    </thead>
+    <tbody>{suspected_rows}</tbody>
+  </table>"""
+    else:
+        suspected_section = ''
+
+    # 7c — Non-lending finance
     if non_lend:
         nlf_rows = ''
         for nl in non_lend:
@@ -1215,13 +1323,10 @@ def section_lenders(d):
         <td><em>{nl.get('note','')}</em></td>
       </tr>"""
         non_lending_section = f"""
-  <h2 class="sub-section">7b — Non-Lending Finance Counterparties</h2>
+  <h2 class="sub-section">7c — Non-Lending Finance Counterparties</h2>
   <table>
     <thead>
-      <tr>
-        <th>Counterparty</th><th>Direction</th>
-        <th class="num">Total Amount</th><th>Frequency</th><th>Note</th>
-      </tr>
+      <tr><th>Counterparty</th><th>Direction</th><th class="num">Total Amount</th><th>Frequency</th><th>Note</th></tr>
     </thead>
     <tbody>{nlf_rows}</tbody>
   </table>"""
@@ -1231,7 +1336,7 @@ def section_lenders(d):
     return f"""
 <div class="table-card">
   <div class="section-title">§7 · Lender Activity</div>
-  <h2 class="sub-section">7a — Confirmed Lenders ({len(active)} Active {'Facility' if len(active) == 1 else 'Facilities'})</h2>
+  <h2 class="sub-section">7a — Confirmed Lenders ({len(confirmed)} Active {'Facility' if len(confirmed) == 1 else 'Facilities'})</h2>
   <table>
     <thead>
       <tr>
@@ -1246,6 +1351,7 @@ def section_lenders(d):
     </thead>
     <tbody>{lender_rows}</tbody>
   </table>
+  {suspected_section}
   {non_lending_section}
 </div>"""
 
@@ -1263,7 +1369,10 @@ def section_large_transactions(d):
         out = ''
         for tx in txs:
             amt  = tx.get('money_in', 0)
-            flag = '⚑ Anomaly — verify source' if (anom_amt > 0 and abs(amt - anom_amt) < 1) else '—'
+            lender_tag = f'<span class="lender-tag">{tx["_lender"]}</span> ' if tx.get('_lender') else ''
+            flag = f'{lender_tag}⚑ Lender drawdown' if tx.get('_lender') else (
+                '⚑ Anomaly — verify source' if (anom_amt > 0 and abs(amt - anom_amt) < 1) else '—'
+            )
             ml   = tx.get('month_label', tx.get('date', ''))
             out += f"""
       <tr>
@@ -1279,6 +1388,7 @@ def section_large_transactions(d):
         out = ''
         for tx in txs:
             amt = tx.get('money_out', 0)
+            lender_tag = f'<span class="lender-tag">{tx["_lender"]}</span>' if tx.get('_lender') else '—'
             ml  = tx.get('month_label', tx.get('date', ''))
             out += f"""
       <tr>
@@ -1286,7 +1396,7 @@ def section_large_transactions(d):
         <td>{tx['description'][:55]}</td>
         <td class="num neg">{fmt(amt)}</td>
         <td>{ml}</td>
-        <td>—</td>
+        <td>{lender_tag}</td>
       </tr>"""
         return out
 
@@ -1311,77 +1421,109 @@ def section_large_transactions(d):
 # ============================================================
 
 def section_failed_flagged(d):
-    fdd = d['failed_dds']
+    bounced = d.get('bounced', {})
     co  = d['connected_out']
     ci  = d['connected_in']
 
-    # 9a Bounced DDs
-    if fdd['count'] > 0:
-        bounced_rows = ''.join(f"""
+    # 9a — Confirmed bounced/returned payments
+    confirmed_bounced = bounced.get('confirmed_bounced', [])
+    suspected_bounced = bounced.get('suspected_bounced', [])
+    all_bounced = confirmed_bounced + suspected_bounced
+
+    if all_bounced:
+        bounced_rows = ''
+        for tx in all_bounced:
+            conf = tx.get('_confidence', 'unknown')
+            badge = '<span class="badge badge-warn">Confirmed</span>' if conf == 'high' else '<span class="badge badge-note">Suspected</span>'
+            amt = tx.get('money_in', 0) or tx.get('money_out', 0)
+            bounced_rows += f"""
       <tr>
         <td>{tx['date']}</td>
         <td>{tx['description'][:55]}</td>
-        <td class="num">{fmt(tx.get('money_in', tx.get('money_out', 0)))}</td>
-        <td><span class="badge badge-warn">Returned</span></td>
-        <td>DD returned to account — original debit already posted same date</td>
-      </tr>""" for tx in fdd['transactions'])
+        <td class="num">{fmt(amt, pence=True)}</td>
+        <td>{badge}</td>
+        <td>{tx.get('_detection', '—')}</td>
+      </tr>"""
     else:
         bounced_rows = '<tr><td colspan="5" style="color:var(--text-dim); font-style:italic;">No bounced or returned payments identified.</td></tr>'
 
-    # 9b Unpaid item fees
-    unpaid_note = (
-        'No separate unpaid item fee lines identified. '
-        'CO should verify whether the bank charged unpaid item fees in connection with any returned DDs.'
-    )
+    # 9b — Fee / OD cost transactions
+    confirmed_fees = bounced.get('confirmed_fees', [])
+    confirmed_od   = bounced.get('confirmed_od_costs', [])
+    all_fees = confirmed_fees + confirmed_od
 
-    # 9c Connected party flows
+    if all_fees:
+        fee_rows = ''
+        for tx in all_fees:
+            amt = tx.get('money_out', 0)
+            fee_type = 'Unpaid Item Fee' if tx in confirmed_fees else 'Overdraft Cost'
+            fee_rows += f"""
+      <tr>
+        <td>{tx['date']}</td>
+        <td>{tx['description'][:55]}</td>
+        <td class="num neg">{fmt(amt, pence=True)}</td>
+        <td>{fee_type}</td>
+        <td>Bank stress signal — account unable to fully service obligations</td>
+      </tr>"""
+    else:
+        fee_rows = f"""
+      <tr><td colspan="5" style="color:var(--text-dim); font-style:italic;">
+        No separate unpaid item fee or overdraft cost lines identified.
+        CO should verify whether the bank charged unpaid item fees in connection with any returned DDs.
+      </td></tr>"""
+
+    # 9c — Connected party flows
     cp_rows = ''
     for tx in ci[:6]:
         amt = tx.get('money_in', 0)
+        matched = tx.get('_matched_name', 'connected party')
         cp_rows += f"""
       <tr>
         <td>{tx['date']}</td>
         <td>{tx['description'][:50]}</td>
         <td class="num pos">{fmt(amt)}</td>
         <td><span class="dir-in">IN</span></td>
-        <td>Connected party</td>
+        <td>Matched: "{matched}"</td>
         <td>⚑ Inbound connected party flow — verify commercial basis</td>
       </tr>"""
     for tx in co[:6]:
         amt = tx.get('money_out', 0)
+        matched = tx.get('_matched_name', 'connected party')
         cp_rows += f"""
       <tr>
         <td>{tx['date']}</td>
         <td>{tx['description'][:50]}</td>
         <td class="num neg">{fmt(amt)}</td>
         <td><span class="dir-out">OUT</span></td>
-        <td>Connected party</td>
+        <td>Matched: "{matched}"</td>
         <td>⚑ Outbound connected party flow — verify commercial basis</td>
       </tr>"""
 
     if not cp_rows:
         cp_rows = '<tr><td colspan="6" style="color:var(--text-dim); font-style:italic;">No connected party flows identified.</td></tr>'
 
+    # Connected names used
+    cn = d.get('connected_names', [])
+    cn_note = f'<p style="font-size:11px; color:var(--text-dim); margin-top:8px;">Detection names: {", ".join(cn[:10])}{"…" if len(cn) > 10 else ""}</p>' if cn else ''
+
     return f"""
 <div class="table-card">
   <div class="section-title">§9 · Failed &amp; Flagged Transactions</div>
 
-  <h2 class="sub-section">9a — Bounced / Returned Payments</h2>
+  <h2 class="sub-section">9a — Bounced / Returned Payments ({len(all_bounced)} found)</h2>
   <table>
     <thead>
-      <tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>Type</th><th>Reviewer Note</th></tr>
+      <tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>Confidence</th><th>Detection Method</th></tr>
     </thead>
     <tbody>{bounced_rows}</tbody>
   </table>
 
-  <h2 class="sub-section" style="margin-top:24px">9b — Failed DD Fees &amp; Unpaid Item Charges</h2>
+  <h2 class="sub-section" style="margin-top:24px">9b — Unpaid Item Fees &amp; Overdraft Costs ({len(all_fees)} found)</h2>
   <table>
     <thead>
       <tr><th>Date</th><th>Description</th><th class="num">Amount</th><th>Type</th><th>Reviewer Note</th></tr>
     </thead>
-    <tbody>
-      <tr><td colspan="5" style="color:var(--text-dim); font-style:italic;">{unpaid_note}</td></tr>
-    </tbody>
+    <tbody>{fee_rows}</tbody>
   </table>
 
   <h2 class="sub-section" style="margin-top:24px">9c — Connected Party Flows</h2>
@@ -1391,6 +1533,7 @@ def section_failed_flagged(d):
     </thead>
     <tbody>{cp_rows}</tbody>
   </table>
+  {cn_note}
 </div>"""
 
 
@@ -1405,8 +1548,18 @@ def section_flags(d):
     low = d['low_balance']
     fdd = d['failed_dds']
     me  = san['middle_east_txs']
+    bounced = d.get('bounced', {})
+    ttp = d.get('hmrc_ttp', {})
+    aff = d['affordability']
 
     flags = []
+
+    # Persistent overdraft
+    if aff.get('persistent_overdraft'):
+        flags.append(('flag-critical', '🚨', f"""
+      <h3><span class="badge badge-crit">CRITICAL</span><span class="badge badge-crit">Overdraft</span> Persistent Overdraft — Average Daily Balance {fmt(d['avg_bal_full'])}</h3>
+      <div class="evidence">Account has operated in overdraft throughout the analysis period. Average daily balance: {fmt(d['avg_bal_full'])}. Closing balance: {fmt(d['closing_bal'])}.</div>
+      <div class="implication">Any reported monthly surplus represents reduction in overdraft depth, not free cash available for new debt service. Recommend £0 affordability unless account can demonstrate ability to operate in credit. Overdraft facility terms and limits should be confirmed with the bank.</div>"""))
 
     # Anomaly
     if d['anomaly_tx']:
@@ -1415,9 +1568,9 @@ def section_flags(d):
         flags.append(('flag-warning', '⚠', f"""
       <h3><span class="badge badge-warn">WARNING</span><span class="badge badge-warn">Unusual Receipt</span> {fmt(d['anomaly_amount'])} — Nature Unconfirmed</h3>
       <div class="evidence">{tx['date']} — {tx['description']} — {fmt(tx['money_in'])}. Flagged anomalous (exceeds 2× average monthly inflow of {fmt(avg_in)}).</div>
-      <div class="implication">This is the largest single receipt in the period and drives the closing balance. CO must establish whether this is trading income, a director injection, or a third-party loan before including it in revenue analysis. Immediately followed by large outgoing payments — possible pass-through.</div>"""))
+      <div class="implication">This is the largest single receipt in the period and drives the closing balance. CO must establish whether this is trading income, a director injection, or a third-party loan before including it in revenue analysis.</div>"""))
 
-    # Concentration risk (if anomaly or top-heavy inflows)
+    # Concentration risk
     top_in_total = sum(tx.get('money_in', 0) for tx in d['top_in'])
     total_in = sum(d['monthly_in'])
     if total_in > 0 and top_in_total / total_in > 0.5:
@@ -1427,22 +1580,52 @@ def section_flags(d):
       <div class="evidence">Top 3 inflows represent {round(top_in_total/total_in*100)}% of total receipts: {top_names}</div>
       <div class="implication">Loss of any single key trading relationship would materially impair debt service capacity. CO should assess dependency and contractual position with major counterparties.</div>"""))
 
+    # HMRC TTP
+    if ttp.get('found'):
+        ttp_txs = '; '.join(f'{t["date"]} {t["description"][:35]}' for t in ttp.get('transactions', [])[:5])
+        flags.append(('flag-critical', '🚨', f"""
+      <h3><span class="badge badge-crit">CRITICAL</span><span class="badge badge-crit">HMRC</span> Time to Pay / NDDS Arrangement Detected</h3>
+      <div class="evidence">{ttp_txs}</div>
+      <div class="implication">Business has negotiated payment arrangements with HMRC, indicating tax arrears. This is a significant red flag for affordability — HMRC takes priority over unsecured creditors. CO must establish: (1) total HMRC debt outstanding; (2) remaining TTP term; (3) whether current TTP payments are being maintained. Consider requesting HMRC statement of account.</div>"""))
+
     # Active lenders
-    active = [v for v in d['lenders'].values() if v['total'] > 0]
+    active = _active_confirmed(d)
     if active:
-        debt_detail = ' · '.join(f'{v["name"]} {fmt(round(v["total"]/d["n_months"]))}/month' for v in active)
+        debt_detail = ' · '.join(f'{v["name"]} {fmt(round(v.get("total_out", v.get("total", 0))/d["n_months"]))}/month' for v in active.values())
         flags.append(('flag-note', 'ℹ', f"""
       <h3><span class="badge badge-note">NOTE</span><span class="badge badge-note">Active Facilities</span> {len(active)} Confirmed Lender{'s' if len(active) > 1 else ''} — ~{fmt(d['existing_debt_svc'])}/Month Combined Debt Service</h3>
       <div class="evidence">{debt_detail}</div>
       <div class="implication">All confirmed via statement payment pattern. Combined monthly commitment must be factored into affordability assessment for any new facility.</div>"""))
 
+    # Suspected lenders
+    suspected = _get_suspected_lenders(d)
+    active_suspected = {k: v for k, v in suspected.items() if (v.get('total_out', 0) + v.get('total_in', 0)) > 0}
+    if active_suspected:
+        susp_names = ', '.join(v['name'][:25] for v in list(active_suspected.values())[:5])
+        flags.append(('flag-warning', '⚠', f"""
+      <h3><span class="badge badge-warn">WARNING</span><span class="badge badge-warn">Suspected Lenders</span> {len(active_suspected)} Unconfirmed Lending Counterpart{'ies' if len(active_suspected) > 1 else 'y'} Detected</h3>
+      <div class="evidence">{susp_names}</div>
+      <div class="implication">Fuzzy keyword matching detected counterparties with lending-related terms in descriptions. CO must verify whether these are actual lenders — if confirmed, additional debt service must be factored into affordability. See §7b.</div>"""))
+
     # Bounced DDs
-    if fdd['count'] > 0:
-        tx_list = '; '.join(f'{t["date"]} {t["description"][:35]}' for t in fdd['transactions'])
+    total_bounced = bounced.get('total_confirmed', 0) + bounced.get('total_suspected', 0)
+    if total_bounced > 0:
+        all_b = bounced.get('confirmed_bounced', []) + bounced.get('suspected_bounced', [])
+        tx_list = '; '.join(f'{t["date"]} {t["description"][:35]}' for t in all_b[:5])
         flags.append(('flag-note', 'ℹ', f"""
-      <h3><span class="badge badge-note">NOTE</span><span class="badge badge-note">Bounced DD</span> {fdd['count']} Failed Direct Debit(s)</h3>
+      <h3><span class="badge badge-note">NOTE</span><span class="badge badge-note">Bounced DD</span> {total_bounced} Failed/Returned Payment(s)</h3>
       <div class="evidence">{tx_list}</div>
-      <div class="implication">Failed DD(s) demonstrate a cash flow moment where the account was unable to service a payment. CO to assess whether trading creditor or non-trading commitment.</div>"""))
+      <div class="implication">Failed/returned payment(s) demonstrate cash flow moments where the account was unable to service obligations. CO to assess whether trading creditor or non-trading commitment.</div>"""))
+
+    # Negative balance days
+    neg_count = low.get('negative_count', 0)
+    if neg_count > 0:
+        lowest = low.get('lowest')
+        lowest_str = f'{lowest[0].strftime("%d/%m/%y") if hasattr(lowest[0], "strftime") else lowest[0]}: {fmt(lowest[1])}' if lowest else ''
+        flags.append(('flag-warning', '⚠', f"""
+      <h3><span class="badge badge-warn">WARNING</span><span class="badge badge-warn">Negative Balance</span> {neg_count} Day(s) in Overdraft</h3>
+      <div class="evidence">Account balance fell below £0 for {neg_count} day(s). Lowest point: {lowest_str}.</div>
+      <div class="implication">Account operated in unauthorised or arranged overdraft. CO to establish: (1) whether overdraft facility exists; (2) facility limit; (3) whether overdraft usage is increasing or reducing over time.</div>"""))
 
     # Middle East
     if me:
@@ -1474,8 +1657,8 @@ def section_flags(d):
     lq_label = 'PASS' if low['below_5k_count'] == 0 else 'NOTE'
     flags.append((lq_cls, 'ℹ', f"""
       <h3><span class="badge {lq_badge}">{lq_label}</span><span class="badge badge-note">Liquidity</span> Low / Near-Zero Balance Days</h3>
-      <div class="evidence">Days with closing balance below £5,000: {low['below_5k_count']}. Below £2,000: {low['below_2k_count']}.</div>
-      <div class="implication">{'No material intraday stress identified from closing balance analysis. Balance has remained comfortable throughout.' if low['below_5k_count'] == 0 else f'Account held below £5,000 for {low["below_5k_count"]} day(s). CO to review context and timing.'}</div>"""))
+      <div class="evidence">Days with closing balance below £5,000: {low['below_5k_count']}. Below £2,000: {low['below_2k_count']}. Negative: {low.get('negative_count', 0)}.</div>
+      <div class="implication">{'No material intraday stress identified from closing balance analysis. Balance has remained comfortable throughout.' if low['below_5k_count'] == 0 and neg_count == 0 else f'Account held below £5,000 for {low["below_5k_count"]} day(s). CO to review context and timing.'}</div>"""))
 
     # Sanctions
     if not san['clean']:
@@ -1504,27 +1687,71 @@ def section_flags(d):
 def section_decision(d):
     aff      = d['affordability']
     fdd      = d['failed_dds']
-    lenders  = d['lenders']
-    n_active = len([v for v in lenders.values() if v['total'] > 0])
-    active_names = ', '.join(v['name'] for v in lenders.values() if v['total'] > 0)
     n        = d['n_months']
+    ttp      = d.get('hmrc_ttp', {})
+    bounced  = d.get('bounced', {})
+
+    active = _active_confirmed(d)
+    n_active = len(active)
+    active_names = ', '.join(v['name'] for v in active.values())
+
+    suspected = _get_suspected_lenders(d)
+    n_suspected = len({k: v for k, v in suspected.items() if (v.get('total_out', 0) + v.get('total_in', 0)) > 0})
 
     in_summary = ' | '.join(f'{l}: {fmt(v)} IN' for l, v in zip(d['month_labels'], d['monthly_in']))
 
+    # Account in credit test — overdraft aware
+    if d['avg_bal_full'] < 0:
+        credit_finding = f'Account operates on permanent overdraft. Average daily balance {fmt(d["avg_bal_full"])}. Not in credit.'
+        credit_badge = 'badge-fail'
+        credit_outcome = 'FAIL'
+    elif d.get('low_balance', {}).get('negative_count', 0) > 0:
+        neg_days = d['low_balance']['negative_count']
+        credit_finding = f'Account fell into overdraft for {neg_days} day(s) during the period. Average daily balance {fmt(d["avg_bal_full"])}.'
+        credit_badge = 'badge-refer'
+        credit_outcome = 'REFER'
+    else:
+        credit_finding = f'Account remained positive for entire period. Average daily balance {fmt(d["avg_bal_full"])}.'
+        credit_badge = 'badge-pass'
+        credit_outcome = 'PASS'
+
+    # Bounced test
+    total_bounced = bounced.get('total_confirmed', 0) + bounced.get('total_suspected', 0)
+
+    # HMRC TTP — real detection
+    if ttp.get('found'):
+        ttp_finding = f'{ttp["count"]} HMRC NDDS/TTP transaction(s) detected. Business has negotiated payment arrangements with HMRC — indicates tax arrears.'
+        ttp_badge = 'badge-fail'
+        ttp_outcome = 'FAIL'
+    else:
+        ttp_finding = (
+            'No HMRC NDDS, TTP, or enforcement signals identified in transaction descriptions. '
+            + ('HMRC VAT refunds received — likely VAT repayment trader.' if any('hmrc refund' in cat.lower() or 'vat' in cat.lower() for cat in d['monthly']) else '')
+        )
+        ttp_badge = 'badge-pass'
+        ttp_outcome = 'PASS'
+
+    # Lender stacking test
+    lender_finding = f'{n_active} confirmed lenders ({active_names}). ' if n_active else 'No confirmed lenders. '
+    if n_suspected > 0:
+        lender_finding += f'{n_suspected} suspected lender(s) flagged for review — see §7b.'
+    else:
+        lender_finding += 'No suspected lenders from fuzzy detection.'
+
     rows = [
         ('Account in credit throughout', 'No unauthorised OD',
-         f'Account remained positive for entire period. Average daily balance {fmt(d["avg_bal_full"])}.',
-         'badge-pass', 'PASS'),
+         credit_finding, credit_badge, credit_outcome),
 
         ('Failed / returned DDs', 'Ideally zero within 6 months',
-         (f'{fdd["count"]} failed DD(s): ' + '; '.join(t["description"][:30] for t in fdd["transactions"]))
-          if fdd['count'] > 0 else 'No failed DDs identified.',
-         'badge-refer' if fdd['count'] > 0 else 'badge-pass',
-         'REFER' if fdd['count'] > 0 else 'PASS'),
+         (f'{total_bounced} bounced/returned payment(s) detected: ' + '; '.join(t["description"][:30] for t in (bounced.get('confirmed_bounced', []) + bounced.get('suspected_bounced', []))[:3]))
+          if total_bounced > 0 else 'No failed/returned payments identified.',
+         'badge-refer' if total_bounced > 0 else 'badge-pass',
+         'REFER' if total_bounced > 0 else 'PASS'),
 
         ('Active lender conflicts', 'No MCA stacking',
-         f'{n_active} confirmed lenders ({active_names}). Different product types — no unsecured stacking detected.' if n_active else 'No confirmed lenders.',
-         'badge-pass', 'PASS'),
+         lender_finding,
+         'badge-refer' if n_suspected > 0 else 'badge-pass',
+         'REFER' if n_suspected > 0 else 'PASS'),
 
         ('Revenue regularity', 'Consistent trading income',
          f'Income over {n} months: {in_summary}.'
@@ -1532,9 +1759,7 @@ def section_decision(d):
          'badge-refer', 'REFER'),
 
         ('HMRC arrears / TTP', 'No TTP arrangement',
-         'No HMRC NDDS, TTP, or enforcement signals identified in transaction descriptions. '
-         + ('HMRC VAT refunds received — likely VAT repayment trader.' if any('hmrc refund' in cat.lower() or 'vat' in cat.lower() for cat in d['monthly']) else ''),
-         'badge-pass', 'PASS'),
+         ttp_finding, ttp_badge, ttp_outcome),
 
         ('Connected party transactions', 'No material unexplained flows',
          f'{len(d["connected_out"])} outbound and {len(d["connected_in"])} inbound connected party flows identified. See §9c for detail.'
@@ -1543,12 +1768,13 @@ def section_decision(d):
          'REFER' if (d['connected_out'] or d['connected_in']) else 'PASS'),
 
         ('DSCR assessment', '≥1.5× (target); ≥1.25× (minimum)',
-         f'Adjusted monthly surplus {fmt(aff["surplus_full"])}. '
-         + (f'Max supportable loan at 1.5× DSCR: {fmt(aff["max_loan_full_dscr"])}.'
-            if aff['max_loan_full_dscr'] > 0
-            else 'Negative adjusted surplus — no supportable loan from observable recurring cash flow without verified additional income. Full accounts required.'),
-         'badge-refer' if aff['surplus_full'] < 0 else 'badge-pass',
-         'REFER' if aff['surplus_full'] < 0 else 'PASS'),
+         (f'Adjusted monthly surplus {fmt(aff["surplus_full"])}. '
+          + (f'Max supportable loan at 1.5× DSCR: {fmt(aff["max_loan_full_dscr"])}.'
+             if aff['max_loan_full_dscr'] > 0
+             else 'Negative adjusted surplus — no supportable loan from observable recurring cash flow without verified additional income. Full accounts required.')
+          + (' ⚠ Persistent overdraft — surplus represents OD reduction, not free cash.' if aff.get('persistent_overdraft') else '')),
+         'badge-refer' if aff['surplus_full'] < 0 or aff.get('persistent_overdraft') else 'badge-pass',
+         'REFER' if aff['surplus_full'] < 0 or aff.get('persistent_overdraft') else 'PASS'),
     ]
 
     tbody = ''
@@ -1591,12 +1817,21 @@ def section_decision(d):
 
 def section_footer(d):
     now = datetime.now().strftime('%d/%m/%y')
+    validation = d.get('validation')
+    if validation and validation.get('all_reconciled'):
+        recon_status = '✓ 100% Reconciled'
+    elif validation:
+        failed = sum(1 for r in validation.get('reconciliation_results', []) if not r['passed'])
+        recon_status = f'⚠ {failed} Reconciliation Warning(s)'
+    else:
+        recon_status = '✓ 100% Reconciled'
+
     return f"""
 <div class="footer">
   {d['account_name']} &nbsp;|&nbsp; {d['sort_code']} &nbsp;|&nbsp; {d['account_number']} &nbsp;|&nbsp;
   {d['n_months']} Months: {d['period_start']}–{d['period_end']} &nbsp;|&nbsp;
   Generated {now} &nbsp;|&nbsp; Monmouth Group Credit Analysis Tool &nbsp;|&nbsp;
-  Full Transaction Parse — {d['total_tx_count']} Rows &nbsp;|&nbsp; ✓ 100% Reconciled
+  Full Transaction Parse — {d['total_tx_count']} Rows &nbsp;|&nbsp; {recon_status}
 </div>"""
 
 

@@ -7,7 +7,42 @@ REQUIRED_MONTHS = 6
 STALE_DAYS_THRESHOLD = 31
 
 
+def fix_first_transaction_double_count(parsed):
+    """
+    Post-processing fix: some banks show the first transaction with a balance
+    equal to the opening balance, meaning that transaction is already factored
+    into the opening figure. If we count it again, reconciliation breaks.
+
+    Detection: if first transaction's balance == opening balance, zero it out.
+    This is bank-agnostic — works on any statement with this pattern.
+    """
+    metadata = parsed.get('metadata', {})
+    transactions = parsed.get('transactions', [])
+    opening = metadata.get('opening_balance', 0)
+
+    if not transactions:
+        return parsed
+
+    first_tx = transactions[0]
+    first_bal = first_tx.get('balance', None)
+
+    # If first transaction balance equals opening balance exactly,
+    # the transaction amount is already baked into the opening figure
+    if first_bal is not None and abs(first_bal - opening) < 0.01:
+        # Zero out the amounts so they don't double-count
+        transactions[0] = {
+            **first_tx,
+            'money_in': 0,
+            'money_out': 0,
+            '_adjusted': 'First transaction zeroed — balance equals opening balance (pre-opening transaction)',
+        }
+
+    return parsed
+
+
 def reconcile_statement(parsed):
+    # Apply first-transaction double-count fix before reconciling
+    parsed = fix_first_transaction_double_count(parsed)
     metadata = parsed.get('metadata', {})
     transactions = parsed.get('transactions', [])
     opening = metadata.get('opening_balance', 0)
