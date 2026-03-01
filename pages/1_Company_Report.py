@@ -15,6 +15,9 @@ import requests
 # ── Page config (set_page_config must be first Streamlit call per page) ────
 # NOTE: page config is set in the root app.py; this page inherits it.
 
+if not st.session_state.get("authenticated", False):
+    st.warning("Please log in from the home page.")
+    st.stop()
 # ── Config ─────────────────────────────────────────────────────────────────
 CH_API_KEY   = os.environ.get("CH_API_KEY", st.secrets.get("CH_API_KEY", ""))
 OUTPUT_DIR   = Path(os.environ.get("REPORT_OUTPUT_DIR", Path.home() / "monmouth_reports"))

@@ -14,6 +14,22 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Password gate ──────────────────────────────────────────────────────────
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.markdown("<div style='height:100px'></div>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        pw = st.text_input("Enter password", type="password", placeholder="Password")
+        if pw:
+            if pw == st.secrets.get("APP_PASSWORD", ""):
+                st.session_state.authenticated = True
+                st.rerun()
+            else:
+                st.error("Incorrect password")
+    st.stop()
 # ── Styling ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>

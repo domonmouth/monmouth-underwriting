@@ -22,6 +22,9 @@ from core.validator import validate_all
 from core.analytics import run_analytics
 from core.report_builder import build_report as build_html_report
 
+if not st.session_state.get("authenticated", False):
+    st.warning("Please log in from the home page.")
+    st.stop()
 # ── Config ─────────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.environ.get(
     "ANTHROPIC_API_KEY",
