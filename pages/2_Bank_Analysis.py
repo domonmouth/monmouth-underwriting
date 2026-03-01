@@ -384,6 +384,8 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
 
             try:
                 data = run_analytics(parsed)
+                # Attach validation results so the report can show reconciliation status
+                data['validation'] = st.session_state.bank_validation
                 st.session_state.bank_analytics = data
                 progress.progress(0.7)
 

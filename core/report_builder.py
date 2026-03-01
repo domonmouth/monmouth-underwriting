@@ -7,6 +7,7 @@ Section map (matching correct ZPE report):
   §1  Header Banner
   §2  Credit Officer Summary
   §3  Methodology Strip
+  §3b Data Quality — Reconciliation Status
   §4  Key Metrics Cards
   §5a Daily Cash Position Chart
   §5b Intra-Month Balance Profile
@@ -531,11 +532,28 @@ def section_credit_summary(d):
 # ============================================================
 
 def section_methodology(d):
+    validation = d.get('validation')
+    if validation:
+        recon_results = validation.get('reconciliation_results', [])
+        passed = sum(1 for r in recon_results if r['passed'])
+        total = len(recon_results)
+        failed = total - passed
+        if failed == 0:
+            recon_str = f'All {total} statements reconcile with £0.00 variance.'
+        else:
+            max_diff = max(r['difference'] for r in recon_results if not r['passed'])
+            recon_str = (
+                f'<span style="color:#b91c1c; font-weight:600">{failed} of {total} statements failed reconciliation</span> '
+                f'(max diff £{max_diff:,.2f}). See Data Quality note below.'
+            )
+    else:
+        recon_str = f'All {d["n_months"]} pass with £0.00 variance.'
+
     return f"""
 <div class="methodology">
   <div class="method-item">
     <label>Reconciliation</label>
-    <span>Opening + Payments IN − Payments OUT = Closing, verified per statement. All {d['n_months']} pass with £0.00 variance.</span>
+    <span>Opening + Payments IN − Payments OUT = Closing, verified per statement. {recon_str}</span>
   </div>
   <div class="method-item">
     <label>Extraction Method</label>
@@ -549,6 +567,91 @@ def section_methodology(d):
     <label>Date Format</label>
     <span>dd/mm/yy throughout</span>
   </div>
+</div>"""
+
+
+# ============================================================
+# §3b DATA QUALITY — RECONCILIATION STATUS
+# ============================================================
+
+def section_data_quality(d):
+    validation = d.get('validation')
+    if not validation:
+        return ''  # No validation data available — skip section
+
+    recon_results = validation.get('reconciliation_results', [])
+    all_reconciled = validation.get('all_reconciled', True)
+
+    if all_reconciled:
+        # All passed — show a clean green confirmation, no table needed
+        return f"""
+<div class="chart-card">
+  <div class="section-title">§3b · Data Quality — Reconciliation Status</div>
+  <div style="padding:12px 16px; background:#dcfce7; border:1px solid #86efac; border-radius:6px; font-size:13px; color:#166534;">
+    <strong>✓ All {len(recon_results)} statements reconciled successfully.</strong>
+    Opening balance + payments in − payments out = closing balance verified for each statement with £0.00 variance.
+    Transaction data is considered reliable for all periods.
+  </div>
+</div>"""
+
+    # One or more failures — show detailed table
+    passed_count = sum(1 for r in recon_results if r['passed'])
+    failed_count = len(recon_results) - passed_count
+    total_diff   = sum(r['difference'] for r in recon_results if not r['passed'])
+
+    rows = ''
+    for r in recon_results:
+        if r['passed']:
+            status_html = '<span style="color:#166534; font-weight:600">✓ PASS</span>'
+            diff_html   = f'<span style="color:#166534">£{r["difference"]:.2f}</span>'
+            row_bg      = ''
+        else:
+            status_html = '<span style="color:#b91c1c; font-weight:600">✗ FAIL</span>'
+            diff_html   = f'<span style="color:#b91c1c; font-weight:700">£{r["difference"]:,.2f}</span>'
+            row_bg      = ' style="background:#fef2f2"'
+
+        rows += f"""
+        <tr{row_bg}>
+          <td style="padding:8px 10px; font-size:12px; border-bottom:1px solid var(--border)">{r['filename']}</td>
+          <td style="padding:8px 10px; font-family:var(--mono); font-size:12px; text-align:right; border-bottom:1px solid var(--border)">£{r['opening']:,.2f}</td>
+          <td style="padding:8px 10px; font-family:var(--mono); font-size:12px; text-align:right; border-bottom:1px solid var(--border)">£{r['total_in']:,.2f}</td>
+          <td style="padding:8px 10px; font-family:var(--mono); font-size:12px; text-align:right; border-bottom:1px solid var(--border)">£{r['total_out']:,.2f}</td>
+          <td style="padding:8px 10px; font-family:var(--mono); font-size:12px; text-align:right; border-bottom:1px solid var(--border)">£{r['expected_closing']:,.2f}</td>
+          <td style="padding:8px 10px; font-family:var(--mono); font-size:12px; text-align:right; border-bottom:1px solid var(--border)">£{r['actual_closing']:,.2f}</td>
+          <td style="padding:8px 10px; font-family:var(--mono); font-size:12px; text-align:right; border-bottom:1px solid var(--border)">{diff_html}</td>
+          <td style="padding:8px 10px; font-size:12px; text-align:center; border-bottom:1px solid var(--border)">{status_html}</td>
+        </tr>"""
+
+    return f"""
+<div class="chart-card">
+  <div class="section-title">§3b · Data Quality — Reconciliation Status</div>
+  <div style="padding:12px 16px; background:#fee2e2; border:1px solid #fca5a5; border-radius:6px; margin-bottom:16px; font-size:13px; color:#7f1d1d;">
+    <strong>⚠ RECONCILIATION WARNING:</strong> {failed_count} of {len(recon_results)} statement{'s' if len(recon_results) != 1 else ''}
+    failed reconciliation with a combined variance of £{total_diff:,.2f}.
+    This typically indicates missed or misclassified transactions during parsing. Affected periods should be
+    treated with caution — inflow/outflow figures and affordability calculations for those months may understate or overstate actual activity.
+  </div>
+  <table style="width:100%; border-collapse:collapse; font-size:13px; border:1px solid var(--border); border-radius:6px;">
+    <thead>
+      <tr style="background:#f1f5f9;">
+        <th style="padding:8px 10px; text-align:left; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Statement</th>
+        <th style="padding:8px 10px; text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Opening</th>
+        <th style="padding:8px 10px; text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Total IN</th>
+        <th style="padding:8px 10px; text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Total OUT</th>
+        <th style="padding:8px 10px; text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Expected Close</th>
+        <th style="padding:8px 10px; text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Actual Close</th>
+        <th style="padding:8px 10px; text-align:right; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Diff</th>
+        <th style="padding:8px 10px; text-align:center; font-size:10px; text-transform:uppercase; color:var(--text-dim); border-bottom:2px solid var(--border)">Status</th>
+      </tr>
+    </thead>
+    <tbody>{rows}
+    </tbody>
+  </table>
+  <p style="font-size:11px; color:var(--text-dim); margin-top:10px; line-height:1.6">
+    Reconciliation formula: Opening Balance + Total Payments IN − Total Payments OUT = Expected Closing Balance.
+    Tolerance: £1.00 (rounding). Differences above this threshold indicate parsing gaps — typically multi-line descriptions,
+    FX transactions, or bank-specific formatting that the parser did not fully capture.
+  </p>
 </div>"""
 
 
@@ -813,22 +916,26 @@ new Chart(ctx3, {{
 def section_affordability(d):
     aff     = d['affordability']
     anomaly = d['anomaly_tx']
+    anomalous_txs = d.get('anomalous_txs', [])
     n       = d['n_months']
     months_3 = f'{d["month_labels"][-3]} – {d["month_labels"][-1]}' if n >= 3 else d['month_labels'][-1]
 
-    # Red warning box
-    if anomaly:
+    # Red warning box (if any anomalous receipts detected)
+    if anomalous_txs:
+        total_excluded = aff.get('total_excluded', 0)
+        count = len(anomalous_txs)
         direction = 'materially exceed' if aff['surplus_full'] < 0 else 'are covered by'
         warning_box = f"""
   <div style="padding:12px 16px; background:#fee2e2; border:1px solid #fca5a5; border-radius:6px; margin-bottom:16px; font-size:13px; color:#7f1d1d;">
-    <strong>⚠ KEY FINDING:</strong> Excluding the unverified {fmt(d['anomaly_amount'])} {anomaly['description'][:40]} receipt,
-    adjusted outflows {direction} adjusted inflows across both {n}-month and 3-month windows.
-    {'This means the business cannot demonstrably service new debt from its observable recurring cash flow. The affordability picture is entirely dependent on whether the anomalous receipt represents regular trading income. CO must resolve this before any lending decision.' if aff['surplus_full'] < 0 else ''}
+    <strong>⚠ KEY FINDING:</strong> {count} anomalous receipt{'s' if count != 1 else ''} totalling {fmt(total_excluded)} detected
+    (each exceeding 2× average monthly inflow).
+    Excluding these, adjusted outflows {direction} adjusted inflows across both {n}-month and 3-month windows.
+    {'This means the business cannot demonstrably service new debt from its observable recurring cash flow. The affordability picture is entirely dependent on whether the anomalous receipts represent regular trading income. CO must resolve this before any lending decision.' if aff['surplus_full'] < 0 else 'Both unadjusted and adjusted figures are shown below — CO should determine which basis is appropriate.'}
   </div>"""
     else:
         warning_box = ''
 
-    def aff_box(title, avg_in, avg_out, surplus, max_pmt, max_dscr, max_zero):
+    def aff_box(title, avg_in, avg_out, surplus, max_pmt, max_dscr, max_zero, in_label='Avg monthly IN'):
         sur_color = 'var(--red)' if surplus < 0 else 'var(--green)'
         zero_color = 'var(--red)' if max_zero <= 0 else 'var(--text-dim)'
         zero_label = f'{fmt(max_zero)} (no buffer)' if max_zero <= 0 else fmt(max_zero)
@@ -836,7 +943,7 @@ def section_affordability(d):
     <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:16px;">
       <div style="font-size:10px; font-family:var(--mono); color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">{title}</div>
       <table style="font-size:13px; width:100%">
-        <tr><td style="color:var(--text-dim); padding:3px 0">Avg monthly IN (adj.)</td><td style="text-align:right; font-family:var(--mono); font-weight:600">{fmt(avg_in)}</td></tr>
+        <tr><td style="color:var(--text-dim); padding:3px 0">{in_label}</td><td style="text-align:right; font-family:var(--mono); font-weight:600">{fmt(avg_in)}</td></tr>
         <tr><td style="color:var(--text-dim); padding:3px 0">Avg monthly OUT</td><td style="text-align:right; font-family:var(--mono); font-weight:600">{fmt(avg_out)}</td></tr>
         <tr style="border-top:1px solid var(--border)">
           <td style="color:var(--text-dim); padding:4px 0">Monthly surplus</td>
@@ -857,16 +964,73 @@ def section_affordability(d):
       </table>
     </div>"""
 
-    box_full = aff_box(
-        f'{n}-Month Average (Adjusted)',
-        aff['avg_in_full'], aff['avg_out_full'], aff['surplus_full'],
-        aff['max_pmt_full'], aff['max_loan_full_dscr'], aff['max_loan_full_zero']
+    # --- UNADJUSTED boxes (all receipts) ---
+    box_unadj_full = aff_box(
+        f'{n}-Month Average (Unadjusted — All Receipts)',
+        aff['unadj_avg_in_full'], aff['unadj_avg_out_full'], aff['unadj_surplus_full'],
+        aff['unadj_max_pmt_full'], aff['unadj_max_loan_full_dscr'], aff['unadj_max_loan_full_zero'],
+        in_label='Avg monthly IN (all)',
     )
-    box_3m = aff_box(
+    box_unadj_3m = aff_box(
+        f'3-Month Average {months_3} (Unadjusted)',
+        aff['unadj_avg_in_3m'], aff['unadj_avg_out_3m'], aff['unadj_surplus_3m'],
+        aff['unadj_max_pmt_3m'], aff['unadj_max_loan_3m_dscr'], aff['unadj_max_loan_3m_zero'],
+        in_label='Avg monthly IN (all)',
+    )
+
+    # --- ADJUSTED boxes (anomalous excluded) ---
+    box_adj_full = aff_box(
+        f'{n}-Month Average (Adjusted — Anomalies Excluded)',
+        aff['avg_in_full'], aff['avg_out_full'], aff['surplus_full'],
+        aff['max_pmt_full'], aff['max_loan_full_dscr'], aff['max_loan_full_zero'],
+        in_label='Avg monthly IN (adj.)',
+    )
+    box_adj_3m = aff_box(
         f'3-Month Average {months_3} (Adjusted)',
         aff['avg_in_3m'], aff['avg_out_3m'], aff['surplus_3m'],
-        aff['max_pmt_3m'], aff['max_loan_3m_dscr'], aff['max_loan_3m_zero']
+        aff['max_pmt_3m'], aff['max_loan_3m_dscr'], aff['max_loan_3m_zero'],
+        in_label='Avg monthly IN (adj.)',
     )
+
+    # --- Anomalous receipts table ---
+    if anomalous_txs:
+        rows = ''
+        for i, atx in enumerate(anomalous_txs, 1):
+            rows += f"""
+        <tr>
+          <td style="padding:6px 10px; font-family:var(--mono); font-size:12px; border-bottom:1px solid var(--border)">{atx['date']}</td>
+          <td style="padding:6px 10px; font-size:12px; border-bottom:1px solid var(--border)">{atx['description'][:60]}</td>
+          <td style="padding:6px 10px; font-family:var(--mono); font-size:12px; text-align:right; font-weight:600; border-bottom:1px solid var(--border); color:var(--red)">{fmt(atx['money_in'])}</td>
+          <td style="padding:6px 10px; font-size:11px; color:var(--text-dim); border-bottom:1px solid var(--border)">{atx.get('_reason', 'Exceeds 2× avg monthly inflow')}</td>
+        </tr>"""
+        total_excluded = aff.get('total_excluded', 0)
+        anomaly_table = f"""
+  <div style="margin-top:20px; margin-bottom:20px;">
+    <div style="font-size:10px; font-family:var(--mono); color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Anomalous Receipts Excluded from Adjusted Figures</div>
+    <table style="width:100%; border-collapse:collapse; font-size:13px; border:1px solid var(--border); border-radius:6px;">
+      <thead>
+        <tr style="background:#fef3c7;">
+          <th style="padding:8px 10px; text-align:left; font-size:10px; text-transform:uppercase; color:#92400e; border-bottom:2px solid #fbbf24">Date</th>
+          <th style="padding:8px 10px; text-align:left; font-size:10px; text-transform:uppercase; color:#92400e; border-bottom:2px solid #fbbf24">Description</th>
+          <th style="padding:8px 10px; text-align:right; font-size:10px; text-transform:uppercase; color:#92400e; border-bottom:2px solid #fbbf24">Amount</th>
+          <th style="padding:8px 10px; text-align:left; font-size:10px; text-transform:uppercase; color:#92400e; border-bottom:2px solid #fbbf24">Reason for Exclusion</th>
+        </tr>
+      </thead>
+      <tbody>{rows}
+        <tr style="background:#fef9ee; font-weight:700">
+          <td colspan="2" style="padding:8px 10px; font-size:12px;">Total excluded</td>
+          <td style="padding:8px 10px; font-family:var(--mono); font-size:12px; text-align:right; color:var(--red)">{fmt(total_excluded)}</td>
+          <td style="padding:8px 10px; font-size:11px; color:var(--text-dim)">{len(anomalous_txs)} transaction{'s' if len(anomalous_txs) != 1 else ''}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>"""
+    else:
+        anomaly_table = """
+  <div style="margin-top:20px; margin-bottom:20px;">
+    <div style="font-size:10px; font-family:var(--mono); color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Anomalous Receipts</div>
+    <p style="font-size:12px; color:var(--text-dim);">No anomalous receipts detected — unadjusted and adjusted figures are identical.</p>
+  </div>"""
 
     pmt_ref = f"""
     <div style="background:#f8fafc; border:1px solid var(--border); border-radius:8px; padding:16px;">
@@ -888,13 +1052,27 @@ def section_affordability(d):
 <div class="chart-card">
   <div class="section-title">§5d · Loan Affordability Analysis — 60% APR, 12-Month Term</div>
   <p style="font-size:12px; color:var(--text-dim); margin-bottom:16px;">
-    Based on observed cash flow excluding anomalous receipts. Existing confirmed debt service ~{fmt(d['existing_debt_svc'])}/month.
-    Monthly surplus = average adjusted inflows minus average outflows. Maximum loan shown at 1.5× DSCR buffer and at zero headroom. All figures rounded to nearest £100.
+    Unadjusted figures include all receipts. Adjusted figures exclude anomalous receipts (see table below).
+    Existing confirmed debt service ~{fmt(d['existing_debt_svc'])}/month.
+    Monthly surplus = average inflows minus average outflows. Maximum loan shown at 1.5× DSCR buffer and at zero headroom. All figures rounded to nearest £100.
   </p>
   {warning_box}
+
+  <div style="font-size:11px; font-family:var(--mono); color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin:16px 0 8px; font-weight:600;">Unadjusted — All Receipts Included</div>
   <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:20px;">
-    {box_full}
-    {box_3m}
+    {box_unadj_full}
+    {box_unadj_3m}
+  </div>
+
+  <div style="font-size:11px; font-family:var(--mono); color:var(--red); text-transform:uppercase; letter-spacing:1px; margin:16px 0 8px; font-weight:600;">Adjusted — Anomalous Receipts Excluded</div>
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:20px;">
+    {box_adj_full}
+    {box_adj_3m}
+  </div>
+
+  {anomaly_table}
+
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:20px;">
     {pmt_ref}
   </div>
 </div>"""
@@ -1444,6 +1622,7 @@ def build_report(data, output_path=None):
 {section_header(data)}
 {section_credit_summary(data)}
 {section_methodology(data)}
+{section_data_quality(data)}
 {section_metrics(data)}
 {section_charts(data)}
 {section_affordability(data)}
