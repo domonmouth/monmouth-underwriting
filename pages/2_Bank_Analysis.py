@@ -226,20 +226,29 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                 from core.parser import PARSE_PROMPT
 
                 # Maximum pages per chunk — keeps output within token limits
-                MAX_PAGES_PER_CHUNK = 12
+                # Chunk based on character count, not page count.
+                # ~30k chars per chunk keeps output within 32k token limit.
+                MAX_CHARS_PER_CHUNK = 30000
 
-                def split_text_into_chunks(full_text, max_pages=MAX_PAGES_PER_CHUNK):
-                    """Split extracted text into chunks of max_pages pages each."""
+                def split_text_into_chunks(full_text, max_chars=MAX_CHARS_PER_CHUNK):
+                    """Split extracted text into chunks that stay under max_chars each."""
                     import re
                     parts = re.split(r'(?=\n--- PAGE \d+)', full_text)
-                    # First part might be empty or pre-page content
                     parts = [p for p in parts if p.strip()]
-                    if len(parts) <= max_pages:
+                    
+                    if sum(len(p) for p in parts) <= max_chars:
                         return [full_text]
+                    
                     chunks = []
-                    for i in range(0, len(parts), max_pages):
-                        chunk = '\n'.join(parts[i:i + max_pages])
-                        chunks.append(chunk)
+                    current_chunk = ''
+                    for part in parts:
+                        if current_chunk and len(current_chunk) + len(part) > max_chars:
+                            chunks.append(current_chunk)
+                            current_chunk = part
+                        else:
+                            current_chunk += part
+                    if current_chunk:
+                        chunks.append(current_chunk)
                     return chunks
 
                 def parse_chunk(client, text_chunk, filename, is_first_chunk):
