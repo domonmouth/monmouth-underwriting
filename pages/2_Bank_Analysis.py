@@ -236,7 +236,7 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                     try:
                         response = client.messages.create(
                             model="claude-sonnet-4-6",
-                            max_tokens=16000,
+                            max_tokens=34000,
                             messages=[{"role": "user", "content": prompt}],
                         )
                         raw = response.content[0].text.strip()
