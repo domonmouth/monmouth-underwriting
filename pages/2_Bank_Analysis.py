@@ -412,8 +412,10 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
                     else:
                         monthly_buckets[(9999, 1)] = [tx]
 
-            # If only one month, no split needed
-            if len(monthly_buckets) <= 1:
+            # If 1-2 months, no split needed.
+            # 2 months is normal for statements dated e.g. "01 Nov to 01 Dec"
+            # where a few transactions fall on the boundary date.
+            if len(monthly_buckets) <= 2:
                 output.append(stmt)
                 continue
 
