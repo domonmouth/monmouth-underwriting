@@ -454,7 +454,11 @@ if st.session_state.bank_stage == "report" and st.session_state.bank_report_html
                 unsafe_allow_html=True,
             )
         with cols[3]:
-            n_lenders = len([v for v in data.get('lenders', {}).values() if v.get('total', 0) > 0])
+            lenders_data = data.get('lenders', {})
+            if 'confirmed' in lenders_data:
+                n_lenders = len([v for v in lenders_data['confirmed'].values() if (v.get('total_out', 0) + v.get('total_in', 0)) > 0])
+            else:
+                n_lenders = len([v for v in lenders_data.values() if isinstance(v, dict) and v.get('total', 0) > 0])
             st.markdown(
                 f'<div class="stat-card"><div class="stat-value">{n_lenders}</div>'
                 f'<div class="stat-label">Active Lenders</div></div>',

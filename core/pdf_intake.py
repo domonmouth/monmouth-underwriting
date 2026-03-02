@@ -1,5 +1,6 @@
 import pdfplumber
 import os
+from collections import defaultdict
 
 # Minimum characters per page to consider a PDF text-based
 MIN_CHARS_PER_PAGE = 300
@@ -56,14 +57,84 @@ def check_pdf_quality(pdf_path):
         }
 
 
+def _needs_char_grouping(pdf):
+    """
+    Detect whether a PDF has overlapping text objects that cause
+    pdfplumber's extract_text() to interleave characters.
+    
+    This is common with Lloyds Bank PDFs where the description and
+    reference number on the next line overlap in x-coordinates,
+    causing garbled output like 'DC 1 escription 0 A 0 P 0 I 0 T...'
+    
+    Detection: check if the first page's extract_text() contains
+    garbled column headers like 'CDolumn' or 'escription' without
+    a preceding 'D' (which would indicate interleaving).
+    """
+    try:
+        page = pdf.pages[0]
+        text = page.extract_text() or ''
+        # Lloyds interleaving signature: column headers get mangled
+        garble_markers = ['CDolumn', 'escription', 'TFype', 'TBype', 'TSype', 'TDype']
+        hits = sum(1 for m in garble_markers if m in text)
+        return hits >= 2
+    except Exception:
+        return False
+
+
+def _extract_text_by_char_position(pdf):
+    """
+    Extract text from a PDF by grouping characters by their y-position.
+    
+    This avoids the interleaving problem where pdfplumber's default
+    extract_text() merges characters from overlapping text objects
+    (e.g. a description line and a reference number line that share
+    the same x-coordinate range but different y-coordinates).
+    
+    Groups characters into rows using a 2px y-tolerance, then
+    reconstructs each row left-to-right.
+    """
+    full_text = ''
+    for i, page in enumerate(pdf.pages):
+        chars = page.chars
+        if not chars:
+            text = page.extract_text() or ''
+            full_text += f'\n--- PAGE {i+1} ---\n{text}'
+            continue
+        
+        rows = defaultdict(list)
+        for c in chars:
+            y_key = round(c['top'] / 2) * 2  # snap to 2px grid
+            rows[y_key].append(c)
+        
+        lines = []
+        for y in sorted(rows.keys()):
+            chars_in_row = sorted(rows[y], key=lambda c: c['x0'])
+            text = ''.join(c['text'] for c in chars_in_row).strip()
+            # Skip dot-only lines (PDF artifacts)
+            if text and not all(c == '.' for c in text):
+                lines.append(text)
+        
+        full_text += f'\n--- PAGE {i+1} ---\n' + '\n'.join(lines)
+    
+    return full_text
+
+
 def extract_text(pdf_path):
     """
     Extract all text from a text-based PDF.
     Returns a single string with all pages concatenated.
+    
+    Automatically detects Lloyds-style PDFs with overlapping text objects
+    and uses character-level y-position grouping to avoid garbled output.
+    Falls back to standard extract_text() for all other banks.
     """
-    full_text = ''
     with pdfplumber.open(pdf_path) as pdf:
+        if _needs_char_grouping(pdf):
+            return _extract_text_by_char_position(pdf)
+        
+        # Standard extraction for well-behaved PDFs
+        full_text = ''
         for i, page in enumerate(pdf.pages):
             text = page.extract_text() or ''
             full_text += f'\n--- PAGE {i+1} ---\n{text}'
-    return full_text
+        return full_text
