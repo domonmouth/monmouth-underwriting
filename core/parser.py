@@ -37,6 +37,12 @@ CRITICAL RULES:
 - Money values must be numbers, not strings (no £ signs)
 - If a value is missing or unclear, use 0
 
+COLUMN TAGS: Some bank statements have amounts prefixed with [IN] or [OUT] tags
+(e.g. '[IN]£500.00' or '[OUT]£200.00'). If these tags are present, use them to determine
+money_in vs money_out: [IN] means money_in, [OUT] means money_out. Any untagged £ amount
+on the same line is the end-of-day balance. If no [IN]/[OUT] tags are present, determine
+money_in vs money_out from the column position as normal.
+
 REFUNDS: Some transactions show a credit/refund on a line that would normally be a debit.
 Look for the word "REFUND" in the description. If a card transaction or similar has "REFUND"
 in its description, it is money_in (credit), NOT money_out.
