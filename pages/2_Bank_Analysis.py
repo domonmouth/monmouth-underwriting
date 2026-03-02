@@ -224,6 +224,57 @@ if uploaded_files and st.session_state.bank_stage == "upload":
 
                 from core.parser import PARSE_PROMPT
 
+                # Maximum pages per chunk — keeps output within token limits
+                MAX_PAGES_PER_CHUNK = 8
+
+                def split_text_into_chunks(full_text, max_pages=MAX_PAGES_PER_CHUNK):
+                    """Split extracted text into chunks of max_pages pages each."""
+                    import re
+                    parts = re.split(r'(?=\n--- PAGE \d+)', full_text)
+                    # First part might be empty or pre-page content
+                    parts = [p for p in parts if p.strip()]
+                    if len(parts) <= max_pages:
+                        return [full_text]
+                    chunks = []
+                    for i in range(0, len(parts), max_pages):
+                        chunk = '\n'.join(parts[i:i + max_pages])
+                        chunks.append(chunk)
+                    return chunks
+
+                def parse_chunk(client, text_chunk, filename, is_first_chunk):
+                    """Parse a single chunk via streaming API. Returns parsed dict or None."""
+                    if is_first_chunk:
+                        prompt = PARSE_PROMPT.format(text=text_chunk)
+                    else:
+                        # Subsequent chunks: only need transactions, not metadata
+                        prompt = (
+                            "You are a bank statement parser. This is a CONTINUATION of a bank statement. "
+                            "Extract every transaction and return JSON with two keys:\n"
+                            '- "metadata": {} (empty object — metadata was already extracted)\n'
+                            '- "transactions": array of transaction objects\n\n'
+                            "Each transaction must have: date (DD/MM/YY), description (string), "
+                            "money_out (number, 0 if none), money_in (number, 0 if none), "
+                            "balance (number, 0 if not shown).\n\n"
+                            "CRITICAL: Include EVERY transaction. Do NOT include BROUGHT FORWARD lines. "
+                            "Money values must be numbers, not strings. Return only valid JSON.\n\n"
+                            f"Bank statement text:\n{text_chunk}"
+                        )
+                    raw = ''
+                    with client.messages.stream(
+                        model="claude-sonnet-4-6",
+                        max_tokens=32000,
+                        messages=[{"role": "user", "content": prompt}],
+                    ) as stream:
+                        for text_chunk_api in stream.text_stream:
+                            raw += text_chunk_api
+                    raw = raw.strip()
+                    if raw.startswith('```'):
+                        raw = raw.split('```')[1]
+                        if raw.startswith('json'):
+                            raw = raw[4:]
+                    raw = raw.strip()
+                    return json.loads(raw)
+
                 for j, pdf_data in enumerate(accepted):
                     step_pct = (total + j + 1) / (total + len(accepted) + 1)
                     status.markdown(
@@ -232,24 +283,36 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                     )
                     progress.progress(step_pct)
 
-                    prompt = PARSE_PROMPT.format(text=pdf_data['text'])
                     try:
-                        # Use streaming to avoid 10-minute timeout on large statements
-                        raw = ''
-                        with client.messages.stream(
-                            model="claude-sonnet-4-6",
-                            max_tokens=32000,
-                            messages=[{"role": "user", "content": prompt}],
-                        ) as stream:
-                            for text_chunk in stream.text_stream:
-                                raw += text_chunk
-                        raw = raw.strip()
-                        if raw.startswith('```'):
-                            raw = raw.split('```')[1]
-                            if raw.startswith('json'):
-                                raw = raw[4:]
-                        raw = raw.strip()
-                        parsed = json.loads(raw)
+                        chunks = split_text_into_chunks(pdf_data['text'])
+
+                        if len(chunks) == 1:
+                            # Small statement — single parse
+                            parsed = parse_chunk(client, chunks[0], pdf_data['filename'], is_first_chunk=True)
+                        else:
+                            # Large statement — parse in chunks and merge
+                            status.markdown(
+                                f'<p class="status-msg">⏳ Large statement — parsing in {len(chunks)} chunks... (1/{len(chunks)})</p>',
+                                unsafe_allow_html=True,
+                            )
+                            merged_transactions = []
+                            parsed_metadata = {}
+
+                            for ci, chunk in enumerate(chunks):
+                                status.markdown(
+                                    f'<p class="status-msg">⏳ Parsing chunk {ci+1}/{len(chunks)} of {pdf_data["filename"]}...</p>',
+                                    unsafe_allow_html=True,
+                                )
+                                chunk_result = parse_chunk(client, chunk, pdf_data['filename'], is_first_chunk=(ci == 0))
+                                if ci == 0:
+                                    parsed_metadata = chunk_result.get('metadata', {})
+                                merged_transactions.extend(chunk_result.get('transactions', []))
+
+                            parsed = {
+                                'metadata': parsed_metadata,
+                                'transactions': merged_transactions,
+                            }
+
                         parsed['_filename'] = pdf_data['filename']
                         parsed['_page_count'] = pdf_data['page_count']
                         parsed_statements.append(parsed)
