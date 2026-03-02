@@ -9,6 +9,7 @@ import time
 import json
 import tempfile
 import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import streamlit as st
@@ -225,7 +226,7 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                 from core.parser import PARSE_PROMPT
 
                 # Maximum pages per chunk — keeps output within token limits
-                MAX_PAGES_PER_CHUNK = 8
+                MAX_PAGES_PER_CHUNK = 12
 
                 def split_text_into_chunks(full_text, max_pages=MAX_PAGES_PER_CHUNK):
                     """Split extracted text into chunks of max_pages pages each."""
@@ -362,6 +363,126 @@ if st.session_state.bank_rejected:
 
 if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
     parsed = st.session_state.bank_parsed
+
+    # ── Split multi-month statements into individual months ──────────
+    def split_multi_month_statements(parsed_statements):
+        """
+        If a single parsed statement covers multiple calendar months,
+        split it into one statement object per month. This enables
+        per-month reconciliation and proper monthly analytics.
+
+        Each monthly statement gets:
+        - metadata with correct opening/closing balance and date range
+        - only the transactions belonging to that month
+        - opening balance = previous month's closing balance
+        """
+        from datetime import datetime as dt
+
+        output = []
+        for stmt in parsed_statements:
+            txs = stmt.get('transactions', [])
+            meta = stmt.get('metadata', {})
+
+            if not txs:
+                output.append(stmt)
+                continue
+
+            # Parse transaction dates and bucket by (year, month)
+            DATE_FMTS = ['%d/%m/%y', '%d/%m/%Y']
+            monthly_buckets = {}  # (year, month) -> [tx, ...]
+            for tx in txs:
+                d = tx.get('date', '')
+                parsed_date = None
+                for fmt in DATE_FMTS:
+                    try:
+                        parsed_date = dt.strptime(d, fmt)
+                        break
+                    except ValueError:
+                        continue
+                if parsed_date:
+                    key = (parsed_date.year, parsed_date.month)
+                    if key not in monthly_buckets:
+                        monthly_buckets[key] = []
+                    monthly_buckets[key].append(tx)
+                else:
+                    # Can't parse date — put in first bucket
+                    if monthly_buckets:
+                        first_key = list(monthly_buckets.keys())[0]
+                        monthly_buckets[first_key].append(tx)
+                    else:
+                        monthly_buckets[(9999, 1)] = [tx]
+
+            # If only one month, no split needed
+            if len(monthly_buckets) <= 1:
+                output.append(stmt)
+                continue
+
+            # Sort months chronologically
+            sorted_months = sorted(monthly_buckets.keys())
+
+            # Build a statement per month
+            opening_bal = meta.get('opening_balance', 0)
+
+            for i, month_key in enumerate(sorted_months):
+                month_txs = monthly_buckets[month_key]
+                year, month = month_key
+
+                # Calculate this month's closing balance
+                # Use the last transaction's balance if available
+                last_tx_with_bal = None
+                for tx in reversed(month_txs):
+                    if tx.get('balance', 0) != 0:
+                        last_tx_with_bal = tx
+                        break
+
+                if last_tx_with_bal:
+                    closing_bal = last_tx_with_bal['balance']
+                else:
+                    # Fallback: calculate from opening + in - out
+                    total_in = sum(t.get('money_in', 0) for t in month_txs)
+                    total_out = sum(t.get('money_out', 0) for t in month_txs)
+                    closing_bal = opening_bal + total_in - total_out
+
+                # Build date range
+                first_day = f"01/{month:02d}/{str(year)[2:]}"
+                # Last day of month
+                if month == 12:
+                    last_day_dt = dt(year + 1, 1, 1) - timedelta(days=1)
+                else:
+                    last_day_dt = dt(year, month + 1, 1) - timedelta(days=1)
+                last_day = last_day_dt.strftime('%d/%m/%y')
+
+                # For first month, use original statement_start
+                if i == 0:
+                    first_day = meta.get('statement_start', first_day)
+                # For last month, use original statement_end
+                if i == len(sorted_months) - 1:
+                    last_day = meta.get('statement_end', last_day)
+
+                month_meta = {
+                    **meta,
+                    'opening_balance': round(opening_bal, 2),
+                    'closing_balance': round(closing_bal, 2),
+                    'statement_start': first_day,
+                    'statement_end': last_day,
+                }
+
+                month_label = dt(year, month, 1).strftime('%b %Y')
+                month_stmt = {
+                    'metadata': month_meta,
+                    'transactions': month_txs,
+                    '_filename': stmt.get('_filename', 'unknown').replace('.pdf', f' ({month_label}).pdf'),
+                    '_page_count': stmt.get('_page_count', 0),
+                }
+                output.append(month_stmt)
+
+                # Next month's opening = this month's closing
+                opening_bal = closing_bal
+
+        return output
+
+    parsed = split_multi_month_statements(parsed)
+    st.session_state.bank_parsed = parsed  # update with split statements
 
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown('<div class="section-label">Parsed Statements</div>', unsafe_allow_html=True)
