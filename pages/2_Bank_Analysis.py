@@ -234,12 +234,16 @@ if uploaded_files and st.session_state.bank_stage == "upload":
 
                     prompt = PARSE_PROMPT.format(text=pdf_data['text'])
                     try:
-                        response = client.messages.create(
+                        # Use streaming to avoid 10-minute timeout on large statements
+                        raw = ''
+                        with client.messages.stream(
                             model="claude-sonnet-4-6",
-                            max_tokens=34000,
+                            max_tokens=32000,
                             messages=[{"role": "user", "content": prompt}],
-                        )
-                        raw = response.content[0].text.strip()
+                        ) as stream:
+                            for text_chunk in stream.text_stream:
+                                raw += text_chunk
+                        raw = raw.strip()
                         if raw.startswith('```'):
                             raw = raw.split('```')[1]
                             if raw.startswith('json'):
