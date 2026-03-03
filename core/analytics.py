@@ -240,9 +240,75 @@ LENDER_REGISTRY = [
     {'name': 'American Express',            'category': 'Credit Card',         'product': 'Business Credit Card',      'keywords': ['american express', 'amex']},
     {'name': 'Barclaycard',                 'category': 'Credit Card',         'product': 'Business Credit Card',      'keywords': ['barclaycard', 'bcard']},
     {'name': 'Capital One',                 'category': 'Credit Card',         'product': 'Business Credit Card',      'keywords': ['capital one']},
+    {'name': 'MBNA',                        'category': 'Credit Card',         'product': 'Credit Card',              'keywords': ['mbna']},
     # ── GOVERNMENT ──
     {'name': 'British Business Bank',       'category': 'Government',          'product': 'Guarantee Schemes',         'keywords': ['british business bank']},
     {'name': 'Start Up Loans Company',      'category': 'Government',          'product': 'Start-Up Finance',          'keywords': ['start up loans', 'startup loans']},
+    {'name': 'Homes England',               'category': 'Government',          'product': 'Housing / Development',     'keywords': ['homes england']},
+    # ── NEW: UNSECURED / REVOLVING / FINTECH ──
+    {'name': 'Bizlend',                     'category': 'Unsecured Lending',   'product': 'Short-Term Loan',           'keywords': ['bizlend']},
+    {'name': 'Haogen Finance',              'category': 'Unsecured Lending',   'product': 'Business Loan',             'keywords': ['haogen']},
+    {'name': 'NCF Finance',                 'category': 'Unsecured Lending',   'product': 'Business Finance',          'keywords': ['ncf finance', 'ncf']},
+    {'name': 'Invocap',                     'category': 'Unsecured Lending',   'product': 'Revenue-Based',             'keywords': ['invocap']},
+    {'name': 'Multifi',                     'category': 'Unsecured Lending',   'product': 'B2B BNPL / Credit',         'keywords': ['multifi']},
+    {'name': 'Lendco',                      'category': 'Unsecured Lending',   'product': 'Business Loan',             'keywords': ['lendco']},
+    {'name': 'Lendhub',                     'category': 'Unsecured Lending',   'product': 'Business Loan',             'keywords': ['lendhub']},
+    {'name': 'BloomSmith',                  'category': 'Unsecured Lending',   'product': 'Tax / VAT Funding',         'keywords': ['bloomsmith']},
+    {'name': 'Colenko',                     'category': 'Unsecured Lending',   'product': 'Business Loan',             'keywords': ['colenko']},
+    {'name': 'NUbnk / OFFA',               'category': 'Unsecured Lending',   'product': 'Embedded Finance',          'keywords': ['nubnk', 'offa']},
+    {'name': '4Syte',                       'category': 'Unsecured Lending',   'product': 'Business Finance',          'keywords': ['4syte']},
+    {'name': 'Finsec',                      'category': 'Unsecured Lending',   'product': 'Business Finance',          'keywords': ['finsec']},
+    {'name': 'Lakeshield',                  'category': 'Unsecured Lending',   'product': 'Business Loan',             'keywords': ['lakeshield']},
+    # ── NEW: ASSET FINANCE ──
+    {'name': 'Federal Capital',             'category': 'Asset Finance',       'product': 'Asset Finance',             'keywords': ['federal capital', 'federal capita']},
+    {'name': 'LDF Finance',                 'category': 'Asset Finance',       'product': 'Asset / Vehicle Finance',   'keywords': ['ldf finance', 'ldf']},
+    {'name': 'BPCE Equipment Solutions',    'category': 'Asset Finance',       'product': 'Equipment Finance',         'keywords': ['bpce']},
+    {'name': 'Helmsley Acceptances',        'category': 'Asset Finance',       'product': 'Asset Finance',             'keywords': ['helmsley']},
+    {'name': 'Horizon Energy Ventures',     'category': 'Asset Finance',       'product': 'Energy Asset Finance',      'keywords': ['horizon energy']},
+    # ── NEW: INVOICE FINANCE ──
+    {'name': 'Factored',                    'category': 'Invoice Finance',     'product': 'Factoring',                 'keywords': ['factored']},
+    {'name': 'FlexABL',                     'category': 'Invoice Finance',     'product': 'ABL',                       'keywords': ['flexabl']},
+    # ── NEW: BRIDGING / PROPERTY ──
+    {'name': 'Alternative Bridging Corp',   'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['alternative bridging']},
+    {'name': 'Devon & Cornwall Securities', 'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['devon & cornwall', 'devon and cornwall']},
+    {'name': 'Landbay',                     'category': 'Bridging / Property', 'product': 'BTL Mortgages',             'keywords': ['landbay']},
+    {'name': 'Proplend',                    'category': 'Bridging / Property', 'product': 'P2P Property',              'keywords': ['proplend']},
+    {'name': 'Salboy Build Partner',        'category': 'Bridging / Property', 'product': 'Development',               'keywords': ['salboy']},
+    # ── NEW: CHALLENGER BANK ──
+    {'name': 'Cumberland Building Society', 'category': 'Challenger Bank',     'product': 'Savings & Mortgages',       'keywords': ['cumberland']},
+]
+
+# ============================================================
+# DEBT COLLECTION / ENFORCEMENT REGISTRY
+# ============================================================
+# Presence of debt collection agencies on a bank statement is a
+# CRITICAL red flag — indicates unpaid debts being pursued.
+
+DEBT_COLLECTION_REGISTRY = [
+    {'name': 'HCCI Credit Services',        'keywords': ['hcci']},
+    {'name': 'Lowell Financial',            'keywords': ['lowell']},
+    {'name': 'Intrum',                      'keywords': ['intrum']},
+    {'name': 'PRA Group',                   'keywords': ['pra group']},
+    {'name': 'Hoist Finance',               'keywords': ['hoist finance', 'hoist']},
+    {'name': 'Cabot Financial',             'keywords': ['cabot financial', 'cabot']},
+    {'name': 'Arrow Global',                'keywords': ['arrow global']},
+    {'name': 'Moorcroft Debt Recovery',     'keywords': ['moorcroft']},
+    {'name': 'Zinc Group',                  'keywords': ['zinc group']},
+    {'name': 'BPF Collections',             'keywords': ['bpf collections']},
+    {'name': 'Arvato Financial Solutions',  'keywords': ['arvato']},
+    {'name': 'Capquest',                    'keywords': ['capquest']},
+    {'name': 'Creditfix',                   'keywords': ['creditfix']},
+    {'name': 'Excel Civil Enforcement',     'keywords': ['excel civil', 'excel enforcement']},
+    {'name': 'Marston Holdings',            'keywords': ['marston holdings', 'marston']},
+    {'name': 'Jacobs Enforcement',          'keywords': ['jacobs enforcement']},
+    {'name': 'High Court Enforcement',      'keywords': ['high court enforcement', 'hce group']},
+    {'name': 'Advantis Credit',             'keywords': ['advantis']},
+    {'name': 'Wescot Credit Services',      'keywords': ['wescot']},
+    {'name': 'Bristow & Sutor',             'keywords': ['bristow & sutor', 'bristow and sutor']},
+    {'name': 'Rossendales',                 'keywords': ['rossendales']},
+    {'name': 'Newlyn',                      'keywords': ['newlyn']},
+    {'name': 'Drydensfairfax',              'keywords': ['drydensfairfax', 'drydens']},
+    {'name': 'Philips & Cohen',             'keywords': ['philips & cohen', 'philips and cohen']},
 ]
 
 # Fuzzy keywords for suspected-lender detection (checked if no static match)
@@ -270,9 +336,30 @@ def match_lender(description):
     return None
 
 
+# Phrases that contain fuzzy keywords but are NOT lenders (false positives)
+FUZZY_EXCLUSIONS = [
+    'automated credit',       # standard bank transfer type
+    'credit interest',        # bank interest payment
+    'credit received',        # generic bank descriptor
+    'credit transfer',        # standard bank transfer type
+    'bank credit',            # generic bank descriptor
+    'gocardless',             # payment processor, not a lender
+    'capital gains',          # tax-related, not a lender
+    'working tax credit',     # HMRC benefit payment
+    'universal credit',       # DWP benefit payment
+    'child tax credit',       # HMRC benefit payment
+    'pension credit',         # DWP benefit payment
+    'credit union',           # savings institution, not commercial lender
+    'credit suisse',          # investment bank, not SME lender
+    'credit card payment',    # generic card payment descriptor
+]
+
+
 def match_suspected_lender(description):
     """Check description against fuzzy keywords. Returns True if suspected lender."""
     d = description.lower()
+    if any(excl in d for excl in FUZZY_EXCLUSIONS):
+        return False
     return any(kw in d for kw in LENDER_FUZZY_KEYWORDS)
 
 
@@ -359,17 +446,55 @@ def detect_bounced_payments(transactions):
 # ============================================================
 # HMRC NDDS / TIME TO PAY DETECTION
 # ============================================================
+# HMRC has two direct debit systems on bank statements:
+#   HMRC SDDS — recurring auto-collection (PAYE via FPS). Normal.
+#   HMRC NDDS — one-off direct debits (Corp Tax, SA, PAYE, VAT).
+#              Also used for TTP instalment arrangements.
+#
+# A single HMRC NDDS payment is routine (paying Corp Tax or SA).
+# A TTP shows as REPEATED HMRC NDDS payments — typically monthly,
+# at fixed/similar amounts, on non-standard dates.
+#
+# Detection strategy:
+#   - 'time to pay', 'ttp', 'debt management' in description → immediate flag
+#   - 3+ HMRC NDDS payments in the period → flag as suspected TTP
+#   - 1-2 HMRC NDDS payments → normal, not flagged
 
-HMRC_TTP_PATTERNS = ['ndds', 'time to pay', 'ttp', 'debt management']
+HMRC_TTP_EXPLICIT = ['time to pay', 'ttp', 'debt management']
 
 def detect_hmrc_ttp(transactions):
-    """Detect HMRC Time to Pay / NDDS arrangements."""
-    ttp_hits = []
+    """Detect HMRC Time to Pay / NDDS arrangements.
+    
+    Distinguishes routine HMRC NDDS payments (Corp Tax, SA) from
+    repeated instalment patterns that indicate a TTP arrangement.
+    """
+    explicit_hits = []
+    ndds_payments = []
+
     for tx in transactions:
         d = tx['description'].lower()
-        if 'hmrc' in d and any(p in d for p in HMRC_TTP_PATTERNS):
-            ttp_hits.append(tx)
-    return {'found': len(ttp_hits) > 0, 'count': len(ttp_hits), 'transactions': ttp_hits}
+        if 'hmrc' not in d:
+            continue
+        # Explicit TTP language — always flag
+        if any(p in d for p in HMRC_TTP_EXPLICIT):
+            explicit_hits.append(tx)
+        # Collect all HMRC NDDS payments (outflows only)
+        elif 'ndds' in d and tx.get('money_out', 0) > 0:
+            ndds_payments.append(tx)
+
+    # 3+ HMRC NDDS outbound payments suggests TTP instalments
+    # (routine Corp Tax / SA would be 1-2 per period)
+    suspected_ttp = ndds_payments if len(ndds_payments) >= 3 else []
+
+    all_hits = explicit_hits + suspected_ttp
+    return {
+        'found': len(all_hits) > 0,
+        'count': len(all_hits),
+        'transactions': all_hits,
+        'explicit': len(explicit_hits) > 0,
+        'ndds_count': len(ndds_payments),
+        'pattern_based': len(suspected_ttp) > 0 and len(explicit_hits) == 0,
+    }
 
 
 # ============================================================
@@ -957,6 +1082,30 @@ def find_lenders(transactions):
     }
 
 
+def find_debt_collectors(transactions):
+    """Detect payments to/from known debt collection and enforcement agencies."""
+    collectors = {}
+    for tx in transactions:
+        d = tx['description'].lower()
+        for entry in DEBT_COLLECTION_REGISTRY:
+            if any(kw in d for kw in entry['keywords']):
+                key = entry['name']
+                if key not in collectors:
+                    collectors[key] = {
+                        'name': entry['name'],
+                        'total_out': 0, 'total_in': 0,
+                        'transactions': [], 'count': 0,
+                    }
+                collectors[key]['transactions'].append(tx)
+                collectors[key]['count'] += 1
+                if tx.get('money_out', 0) > 0:
+                    collectors[key]['total_out'] += tx['money_out']
+                if tx.get('money_in', 0) > 0:
+                    collectors[key]['total_in'] += tx['money_in']
+                break  # one match per transaction
+    return collectors
+
+
 def find_top_transactions(transactions, n=5):
     top_in  = sorted([t for t in transactions if t['money_in'] > 0], key=lambda x: -x['money_in'])[:n]
     top_out = sorted([t for t in transactions if t['money_out'] > 0], key=lambda x: -x['money_out'])[:n]
@@ -1023,6 +1172,9 @@ def run_analytics(parsed_statements, director_names=None):
 
     # Lender detection (full registry + fuzzy)
     lenders = find_lenders(transactions)
+
+    # Debt collection / enforcement detection
+    debt_collectors = find_debt_collectors(transactions)
 
     # Anomaly detection — large inflows + ALL lender drawdowns
     avg_monthly_in = sum(monthly_in) / n_months if n_months else 0
@@ -1126,7 +1278,7 @@ def run_analytics(parsed_statements, director_names=None):
         'daily_series': [(d.strftime('%d/%m/%y'), b) for d, b in daily_series],
         'avg_bal_full': avg_bal_full, 'avg_bal_3m': avg_bal_3m,
         'intramonth_data': intramonth_data, 'avg_intramonth': avg_intramonth,
-        'lenders': lenders, 'existing_debt_svc': round(existing_debt_service),
+        'lenders': lenders, 'debt_collectors': debt_collectors, 'existing_debt_svc': round(existing_debt_service),
         'anomaly_amount': anomaly_amount,
         'anomaly_tx': large_inflows[0] if large_inflows else None,
         'anomaly_month_idx': anomaly_month_idx,

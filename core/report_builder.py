@@ -583,7 +583,12 @@ def section_credit_summary(d):
 
     # HMRC TTP
     ttp = d.get('hmrc_ttp', {})
-    ttp_note = ' <strong>⚠ HMRC Time to Pay / NDDS arrangement detected.</strong>' if ttp.get('found') else ''
+    if ttp.get('explicit'):
+        ttp_note = ' <strong>🚨 HMRC Time to Pay arrangement detected.</strong>'
+    elif ttp.get('pattern_based'):
+        ttp_note = f' <strong>⚠ {ttp["ndds_count"]} HMRC NDDS payments — suspected TTP, CO to verify.</strong>'
+    else:
+        ttp_note = ''
 
     return f"""
 <div class="credit-alert">
@@ -1583,12 +1588,28 @@ def section_flags(d):
     # HMRC TTP
     if ttp.get('found'):
         ttp_txs = '; '.join(f'{t["date"]} {t["description"][:35]}' for t in ttp.get('transactions', [])[:5])
-        flags.append(('flag-critical', '🚨', f"""
+        if ttp.get('explicit'):
+            flags.append(('flag-critical', '🚨', f"""
       <h3><span class="badge badge-crit">CRITICAL</span><span class="badge badge-crit">HMRC</span> Time to Pay / NDDS Arrangement Detected</h3>
       <div class="evidence">{ttp_txs}</div>
       <div class="implication">Business has negotiated payment arrangements with HMRC, indicating tax arrears. This is a significant red flag for affordability — HMRC takes priority over unsecured creditors. CO must establish: (1) total HMRC debt outstanding; (2) remaining TTP term; (3) whether current TTP payments are being maintained. Consider requesting HMRC statement of account.</div>"""))
+        elif ttp.get('pattern_based'):
+            flags.append(('flag-warning', '⚠', f"""
+      <h3><span class="badge badge-warn">WARNING</span><span class="badge badge-warn">HMRC</span> Suspected Time to Pay — {ttp['ndds_count']} HMRC NDDS Payments Detected</h3>
+      <div class="evidence">{ttp_txs}</div>
+      <div class="implication">{ttp['ndds_count']} HMRC NDDS direct debit payments identified in the period. Routine tax payments (Corporation Tax, Self Assessment) typically produce 1–2 NDDS entries per period. A higher count may indicate a Time to Pay instalment arrangement. CO should verify: (1) whether a TTP is in place; (2) the nature and amount of any HMRC arrears; (3) whether the business is current on all tax obligations.</div>"""))
 
-    # Active lenders
+    # Debt collection / enforcement
+    debt_collectors = d.get('debt_collectors', {})
+    if debt_collectors:
+        dc_detail = '; '.join(
+            f'{v["name"]} ({v["count"]} tx, {fmt(v["total_out"])} out)'
+            for v in debt_collectors.values()
+        )
+        flags.append(('flag-critical', '🚨', f"""
+      <h3><span class="badge badge-crit">CRITICAL</span><span class="badge badge-crit">Debt Recovery</span> Debt Collection / Enforcement Agency Activity Detected</h3>
+      <div class="evidence">{dc_detail}</div>
+      <div class="implication">Payments to debt collection or enforcement agencies indicate outstanding debts being actively pursued against the business. This is a strong indicator of financial distress and potential CCJs or enforcement action. CO must establish: (1) nature and quantum of underlying debt; (2) whether any CCJs have been registered; (3) current status of any enforcement proceedings. Consider requesting a full creditor schedule from the applicant.</div>"""))
     active = _active_confirmed(d)
     if active:
         debt_detail = ' · '.join(f'{v["name"]} {fmt(round(v.get("total_out", v.get("total", 0))/d["n_months"]))}/month' for v in active.values())
@@ -1690,6 +1711,7 @@ def section_decision(d):
     n        = d['n_months']
     ttp      = d.get('hmrc_ttp', {})
     bounced  = d.get('bounced', {})
+    debt_collectors = d.get('debt_collectors', {})
 
     active = _active_confirmed(d)
     n_active = len(active)
@@ -1718,15 +1740,20 @@ def section_decision(d):
     # Bounced test
     total_bounced = bounced.get('total_confirmed', 0) + bounced.get('total_suspected', 0)
 
-    # HMRC TTP — real detection
-    if ttp.get('found'):
-        ttp_finding = f'{ttp["count"]} HMRC NDDS/TTP transaction(s) detected. Business has negotiated payment arrangements with HMRC — indicates tax arrears.'
+    # HMRC TTP — tiered detection
+    if ttp.get('explicit'):
+        ttp_finding = f'{ttp["count"]} HMRC TTP/debt management transaction(s) detected. Business has negotiated payment arrangements with HMRC — indicates tax arrears.'
         ttp_badge = 'badge-fail'
         ttp_outcome = 'FAIL'
+    elif ttp.get('pattern_based'):
+        ttp_finding = f'{ttp["ndds_count"]} HMRC NDDS payments in the period — exceeds routine tax payment frequency. Suspected Time to Pay arrangement. CO to verify with applicant.'
+        ttp_badge = 'badge-refer'
+        ttp_outcome = 'REFER'
     else:
         ttp_finding = (
-            'No HMRC NDDS, TTP, or enforcement signals identified in transaction descriptions. '
-            + ('HMRC VAT refunds received — likely VAT repayment trader.' if any('hmrc refund' in cat.lower() or 'vat' in cat.lower() for cat in d['monthly']) else '')
+            'No HMRC TTP or enforcement signals identified. '
+            + (f'{ttp.get("ndds_count", 0)} routine HMRC NDDS payment(s) — consistent with normal tax cycle.' if ttp.get('ndds_count', 0) > 0 else '')
+            + (' HMRC VAT refunds received — likely VAT repayment trader.' if any('hmrc refund' in cat.lower() or 'vat' in cat.lower() for cat in d['monthly']) else '')
         )
         ttp_badge = 'badge-pass'
         ttp_outcome = 'PASS'
@@ -1760,6 +1787,14 @@ def section_decision(d):
 
         ('HMRC arrears / TTP', 'No TTP arrangement',
          ttp_finding, ttp_badge, ttp_outcome),
+
+        ('Debt collection activity', 'No enforcement or collection agency payments',
+         (f'{len(debt_collectors)} debt collection/enforcement agenc{"ies" if len(debt_collectors) > 1 else "y"} identified: '
+          + ', '.join(v["name"] for v in debt_collectors.values())
+          + '. Indicates actively pursued debts — immediate investigation required.')
+          if debt_collectors else 'No payments to known debt collection or enforcement agencies identified.',
+         'badge-fail' if debt_collectors else 'badge-pass',
+         'FAIL' if debt_collectors else 'PASS'),
 
         ('Connected party transactions', 'No material unexplained flows',
          f'{len(d["connected_out"])} outbound and {len(d["connected_in"])} inbound connected party flows identified. See §9c for detail.'
