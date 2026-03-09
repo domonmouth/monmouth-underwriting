@@ -325,18 +325,18 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                                 'transactions': merged_transactions,
                             }
 
-                        parsed['_filename'] = pdf_data['filename']
+                       parsed['_filename'] = pdf_data['filename']
                         parsed['_page_count'] = pdf_data['page_count']
                         st.session_state['debug_meta'] = {
-                        'metadata': parsed.get('metadata', {}),
-                        'first_5_tx': parsed.get('transactions', [])[:5]
+                            'metadata': parsed.get('metadata', {}),
+                            'total_in': sum(t.get('money_in', 0) for t in parsed.get('transactions', [])),
+                            'total_out': sum(t.get('money_out', 0) for t in parsed.get('transactions', [])),
+                            'first_5_tx': parsed.get('transactions', [])[:5]
                         }  # TEMP DEBUG
                         parsed_statements.append(parsed)
                     except Exception as e:
                         rejected.append({
                             "filename": pdf_data["filename"],
-                            "reason": f"API parse failed: {e}"
-                        })
 
                 progress.progress(1.0)
                 status.markdown(
