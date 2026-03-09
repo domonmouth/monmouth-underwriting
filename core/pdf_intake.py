@@ -186,12 +186,14 @@ def _is_hsbc(pdf):
 
 def _clean_hsbc_numbers(text):
     """
-    Fix HSBC PDF rendering quirk: spurious spaces inside numbers.
-    e.g. '26,61 0.15 D' -> '26,610.15 D'
+    Fix HSBC PDF rendering quirk: spurious space inside a number where
+    a comma-group is split, e.g. '26,61 0.15' -> '26,610.15'.
+    Only fixes the pattern: digits-comma-2digits SPACE 1digit-dot-2digits
+    which is the exact glitch seen in HSBC summary boxes.
     """
     text = re.sub(
-        r'(\d[\d,]*)\s+(\d+\.\d{2})',
-        lambda m: m.group(1).replace(' ', '') + m.group(2),
+        r'(\d{1,3},\d{2})\s(\d\.\d{2})',
+        lambda m: m.group(1) + m.group(2),
         text
     )
     return text
