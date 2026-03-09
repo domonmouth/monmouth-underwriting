@@ -158,7 +158,7 @@ uploaded_files = st.file_uploader(
     type=["pdf"],
     accept_multiple_files=True,
     label_visibility="collapsed",
-    help="Upload Barclays PDF bank statements (native digital, not scanned). Minimum 3 months recommended, 6+ ideal.",
+    help="Upload PDF bank statements (native digital, not scanned). Minimum 3 months recommended, 6+ ideal.",
 )
 
 if uploaded_files and st.session_state.bank_stage == "upload":
@@ -172,14 +172,13 @@ if uploaded_files and st.session_state.bank_stage == "upload":
         total = len(uploaded_files)
 
         for i, uf in enumerate(uploaded_files):
-            pct = (i + 1) / (total + 2)  # leave room for parse steps
+            pct = (i + 1) / (total + 2)
             status.markdown(
                 f'<p class="status-msg">⏳ Checking {uf.name}... ({i+1}/{total})</p>',
                 unsafe_allow_html=True,
             )
             progress.progress(pct)
 
-            # Save to temp file for pdfplumber
             with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
                 tmp.write(uf.read())
                 tmp_path = tmp.name
@@ -203,7 +202,6 @@ if uploaded_files and st.session_state.bank_stage == "upload":
             finally:
                 os.unlink(tmp_path)
 
-        # Show quality check results
         st.session_state.bank_accepted = accepted
         st.session_state.bank_rejected = rejected
 
@@ -212,7 +210,6 @@ if uploaded_files and st.session_state.bank_stage == "upload":
             status.empty()
             st.error("No valid statements found. All files were rejected — see details below.")
         else:
-            # Parse via Claude API
             if not ANTHROPIC_API_KEY:
                 progress.empty()
                 status.empty()
@@ -224,11 +221,8 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                 import anthropic
                 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-                from core.parser import PARSE_PROMPT
+                from core.parser import PARSE_PROMPT, BANK_HINTS
 
-                # Maximum pages per chunk — keeps output within token limits
-                # Chunk based on character count, not page count.
-                # ~30k chars per chunk keeps output within 32k token limit.
                 MAX_CHARS_PER_CHUNK = 30000
 
                 def split_text_into_chunks(full_text, max_chars=MAX_CHARS_PER_CHUNK):
@@ -236,10 +230,10 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                     import re
                     parts = re.split(r'(?=\n--- PAGE \d+)', full_text)
                     parts = [p for p in parts if p.strip()]
-                    
+
                     if sum(len(p) for p in parts) <= max_chars:
                         return [full_text]
-                    
+
                     chunks = []
                     current_chunk = ''
                     for part in parts:
@@ -252,12 +246,12 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                         chunks.append(current_chunk)
                     return chunks
 
-                def parse_chunk(client, text_chunk, filename, is_first_chunk):
+                def parse_chunk(client, text_chunk, filename, is_first_chunk, bank_name='unknown'):
                     """Parse a single chunk via streaming API. Returns parsed dict or None."""
                     if is_first_chunk:
-                        prompt = PARSE_PROMPT.format(text=text_chunk)
+                        hints = BANK_HINTS.get(bank_name, '')
+                        prompt = PARSE_PROMPT.format(bank_hints=hints, text=text_chunk)
                     else:
-                        # Subsequent chunks: only need transactions, not metadata
                         prompt = (
                             "You are a bank statement parser. This is a CONTINUATION of a bank statement. "
                             "Extract every transaction and return JSON with two keys:\n"
@@ -301,10 +295,11 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                         chunks = split_text_into_chunks(pdf_data['text'])
 
                         if len(chunks) == 1:
-                            # Small statement — single parse
-                            parsed = parse_chunk(client, chunks[0], pdf_data['filename'], is_first_chunk=True)
+                            parsed = parse_chunk(
+                                client, chunks[0], pdf_data['filename'],
+                                is_first_chunk=True, bank_name=pdf_data['bank_name']
+                            )
                         else:
-                            # Large statement — parse in chunks and merge
                             status.markdown(
                                 f'<p class="status-msg">⏳ Large statement — parsing in {len(chunks)} chunks... (1/{len(chunks)})</p>',
                                 unsafe_allow_html=True,
@@ -317,7 +312,10 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                                     f'<p class="status-msg">⏳ Parsing chunk {ci+1}/{len(chunks)} of {pdf_data["filename"]}...</p>',
                                     unsafe_allow_html=True,
                                 )
-                                chunk_result = parse_chunk(client, chunk, pdf_data['filename'], is_first_chunk=(ci == 0))
+                                chunk_result = parse_chunk(
+                                    client, chunk, pdf_data['filename'],
+                                    is_first_chunk=(ci == 0), bank_name=pdf_data['bank_name']
+                                )
                                 if ci == 0:
                                     parsed_metadata = chunk_result.get('metadata', {})
                                 merged_transactions.extend(chunk_result.get('transactions', []))
@@ -377,17 +375,10 @@ if st.session_state.bank_rejected:
 if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
     parsed = st.session_state.bank_parsed
 
-    # ── Split multi-month statements into individual months ──────────
     def split_multi_month_statements(parsed_statements):
         """
         If a single parsed statement covers multiple calendar months,
-        split it into one statement object per month. This enables
-        per-month reconciliation and proper monthly analytics.
-
-        Each monthly statement gets:
-        - metadata with correct opening/closing balance and date range
-        - only the transactions belonging to that month
-        - opening balance = previous month's closing balance
+        split it into one statement object per month.
         """
         from datetime import datetime as dt
 
@@ -400,9 +391,8 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
                 output.append(stmt)
                 continue
 
-            # Parse transaction dates and bucket by (year, month)
             DATE_FMTS = ['%d/%m/%y', '%d/%m/%Y']
-            monthly_buckets = {}  # (year, month) -> [tx, ...]
+            monthly_buckets = {}
             for tx in txs:
                 d = tx.get('date', '')
                 parsed_date = None
@@ -418,32 +408,23 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
                         monthly_buckets[key] = []
                     monthly_buckets[key].append(tx)
                 else:
-                    # Can't parse date — put in first bucket
                     if monthly_buckets:
                         first_key = list(monthly_buckets.keys())[0]
                         monthly_buckets[first_key].append(tx)
                     else:
                         monthly_buckets[(9999, 1)] = [tx]
 
-            # If 1-2 months, no split needed.
-            # 2 months is normal for statements dated e.g. "01 Nov to 01 Dec"
-            # where a few transactions fall on the boundary date.
             if len(monthly_buckets) <= 2:
                 output.append(stmt)
                 continue
 
-            # Sort months chronologically
             sorted_months = sorted(monthly_buckets.keys())
-
-            # Build a statement per month
             opening_bal = meta.get('opening_balance', 0)
 
             for i, month_key in enumerate(sorted_months):
                 month_txs = monthly_buckets[month_key]
                 year, month = month_key
 
-                # Calculate this month's closing balance
-                # Use the last transaction's balance if available
                 last_tx_with_bal = None
                 for tx in reversed(month_txs):
                     if tx.get('balance', 0) != 0:
@@ -453,24 +434,19 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
                 if last_tx_with_bal:
                     closing_bal = last_tx_with_bal['balance']
                 else:
-                    # Fallback: calculate from opening + in - out
                     total_in = sum(t.get('money_in', 0) for t in month_txs)
                     total_out = sum(t.get('money_out', 0) for t in month_txs)
                     closing_bal = opening_bal + total_in - total_out
 
-                # Build date range
                 first_day = f"01/{month:02d}/{str(year)[2:]}"
-                # Last day of month
                 if month == 12:
                     last_day_dt = dt(year + 1, 1, 1) - timedelta(days=1)
                 else:
                     last_day_dt = dt(year, month + 1, 1) - timedelta(days=1)
                 last_day = last_day_dt.strftime('%d/%m/%y')
 
-                # For first month, use original statement_start
                 if i == 0:
                     first_day = meta.get('statement_start', first_day)
-                # For last month, use original statement_end
                 if i == len(sorted_months) - 1:
                     last_day = meta.get('statement_end', last_day)
 
@@ -490,19 +466,16 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
                     '_page_count': stmt.get('_page_count', 0),
                 }
                 output.append(month_stmt)
-
-                # Next month's opening = this month's closing
                 opening_bal = closing_bal
 
         return output
 
     parsed = split_multi_month_statements(parsed)
-    st.session_state.bank_parsed = parsed  # update with split statements
+    st.session_state.bank_parsed = parsed
 
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown('<div class="section-label">Parsed Statements</div>', unsafe_allow_html=True)
 
-    # Quick stats
     total_tx = sum(len(p.get('transactions', [])) for p in parsed)
     cols = st.columns(3)
     with cols[0]:
@@ -528,13 +501,11 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-    # Run validation
     st.markdown('<div class="section-label">Reconciliation & Validation</div>', unsafe_allow_html=True)
 
     validation = validate_all(parsed)
     st.session_state.bank_validation = validation
 
-    # Show reconciliation results
     for r in validation['reconciliation_results']:
         if r['passed']:
             st.markdown(
@@ -550,7 +521,6 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
                 unsafe_allow_html=True,
             )
 
-    # Sufficiency
     suff = validation['sufficiency']
     if suff['months_covered'] < 6:
         st.markdown(
@@ -564,7 +534,6 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
             if 'RECONCILIATION' not in w:
                 st.markdown(f'<div class="warn-box">⚠ {w}</div>', unsafe_allow_html=True)
 
-    # Reconciliation warnings (no longer blocks)
     if not validation['all_reconciled']:
         st.markdown(
             '<div class="warn-box">⚠ One or more statements did not fully reconcile. '
@@ -587,7 +556,6 @@ if st.session_state.bank_stage == "parsed" and st.session_state.bank_parsed:
 
             try:
                 data = run_analytics(parsed)
-                # Attach validation results so the report can show reconciliation status
                 data['validation'] = st.session_state.bank_validation
                 st.session_state.bank_analytics = data
                 progress.progress(0.7)
@@ -629,7 +597,6 @@ if st.session_state.bank_stage == "report" and st.session_state.bank_report_html
     st.markdown("<hr>", unsafe_allow_html=True)
     st.markdown('<div class="section-label">Report Ready</div>', unsafe_allow_html=True)
 
-    # Key findings summary cards
     if data:
         aff = data.get('affordability', {})
         cols = st.columns(4)
@@ -670,7 +637,6 @@ if st.session_state.bank_stage == "report" and st.session_state.bank_report_html
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-    # Download button
     account_name = data.get('account_name', 'Unknown') if data else 'Unknown'
     safe_name = "".join(c if c.isalnum() or c in (' ', '-', '_') else '' for c in account_name).strip().replace(' ', '_')
     filename = f"{safe_name}_Bank_Analysis_{datetime.date.today().isoformat()}.html"
@@ -685,13 +651,11 @@ if st.session_state.bank_stage == "report" and st.session_state.bank_report_html
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-    # Report preview
     with st.expander("📊  Preview Report", expanded=False):
         st.components.v1.html(html, height=800, scrolling=True)
 
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-    # Reset button
     if st.button("🔄  Analyse New Statements", use_container_width=True):
         st.session_state.bank_parsed = []
         st.session_state.bank_validation = None
