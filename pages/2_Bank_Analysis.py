@@ -335,7 +335,8 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                 st.session_state.bank_analytics = analytics
 
                 # ── Step 5: build report ──────────────────────────────────
-                report_html = build_html_report(parsed_statements, validation)
+                analytics['validation'] = validation
+                report_html = build_html_report(analytics)
                 st.session_state.bank_report_html = report_html
 
                 st.session_state.bank_stage = "results"
