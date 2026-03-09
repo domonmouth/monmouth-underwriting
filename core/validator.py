@@ -8,20 +8,30 @@ STALE_DAYS_THRESHOLD = 31
 
 
 def fix_first_transaction_double_count(parsed):
-    """
-    Post-processing fix: some banks show the first transaction with a balance
-    equal to the opening balance, meaning that transaction is already factored
-    into the opening figure. If we count it again, reconciliation breaks.
-
-    Detection: if first transaction's balance == opening balance, zero it out.
-    This is bank-agnostic — works on any statement with this pattern.
-    """
     metadata = parsed.get('metadata', {})
     transactions = parsed.get('transactions', [])
     opening = metadata.get('opening_balance', 0)
 
     if not transactions:
         return parsed
+
+    first_tx = transactions[0]
+    first_bal = first_tx.get('balance', None)
+    first_in = first_tx.get('money_in', 0)
+    first_out = first_tx.get('money_out', 0)
+
+    # Only zero out if the first transaction has no actual amounts —
+    # i.e. it's a pure balance marker, not a real transaction
+    if first_bal is not None and abs(first_bal - opening) < 0.01:
+        if first_in == 0 and first_out == 0:
+            transactions[0] = {
+                **first_tx,
+                'money_in': 0,
+                'money_out': 0,
+                '_adjusted': 'First transaction zeroed — balance equals opening balance (pre-opening transaction)',
+            }
+
+    return parsed
 
     first_tx = transactions[0]
     first_bal = first_tx.get('balance', None)
