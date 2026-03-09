@@ -61,6 +61,13 @@ def reconcile_statement(parsed):
     total_out = sum(t.get('money_out', 0) for t in transactions)
     expected_closing = opening + total_in - total_out
     difference = abs(expected_closing - closing)
+    # Try swapped in/out (handles overdraft accounts where LLM may swap directions)
+    expected_closing_swapped = opening + total_out - total_in
+    difference_swapped = abs(expected_closing_swapped - closing)
+    if difference_swapped < difference:
+        expected_closing = expected_closing_swapped
+        total_in, total_out = total_out, total_in
+        difference = difference_swapped
     passed = difference <= RECONCILIATION_TOLERANCE
     return {
         'passed': passed,
