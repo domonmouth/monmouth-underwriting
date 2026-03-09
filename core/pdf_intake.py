@@ -73,10 +73,6 @@ def _is_starling(pdf):
 
 
 def _find_starling_column_boundary(page):
-    """
-    Find the x-position boundary between IN and OUT columns
-    from the header row. Returns the boundary x value or None.
-    """
     chars_by_y = defaultdict(list)
     for c in page.chars:
         chars_by_y[round(c['top'])].append(c)
@@ -87,11 +83,9 @@ def _find_starling_column_boundary(page):
         if 'TRANSACTION' in row_text and 'IN' in row_text and 'OUT' in row_text:
             in_x = out_x = None
             for j, c in enumerate(row_chars):
-                # Find 'IN' header (after TRANSACTION area, x > 350)
                 if c['text'] == 'I' and j + 1 < len(row_chars) and row_chars[j + 1]['text'] == 'N' and c['x0'] > 350:
                     if in_x is None:
                         in_x = c['x0']
-                # Find 'OUT' header
                 if c['text'] == 'O' and j + 2 < len(row_chars) and row_chars[j + 1]['text'] == 'U' and row_chars[j + 2]['text'] == 'T' and c['x0'] > 350:
                     out_x = c['x0']
             if in_x and out_x:
@@ -100,14 +94,6 @@ def _find_starling_column_boundary(page):
 
 
 def _extract_starling_text(pdf):
-    """
-    Extract Starling PDFs with column-aware amount tagging.
-    
-    Tags each £amount with [IN] or [OUT] based on its x-position
-    relative to the column headers, so the LLM parser can correctly
-    assign money_in vs money_out.
-    """
-    # Find column boundary from first page with header
     col_info = None
     for page in pdf.pages:
         col_info = _find_starling_column_boundary(page)
@@ -115,7 +101,6 @@ def _extract_starling_text(pdf):
             break
 
     if not col_info:
-        # Fallback to standard extraction
         full_text = ''
         for i, page in enumerate(pdf.pages):
             full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
@@ -125,7 +110,6 @@ def _extract_starling_text(pdf):
 
     full_text = ''
     for i, page in enumerate(pdf.pages):
-        # Find header row y-position on this page so we only tag transaction rows
         header_y = None
         chars_by_y_hdr = defaultdict(list)
         for c in page.chars:
@@ -136,14 +120,11 @@ def _extract_starling_text(pdf):
                 header_y = y_h
                 break
 
-        # Map each £ sign to its column based on x-position
-        # Only tag £ signs that are below the header row (skip summary/header area)
-        pound_info = {}  # y -> list of (x, column)
+        pound_info = {}
         for c in page.chars:
             if c['text'] == '£':
                 y = round(c['top'])
                 x = c['x0']
-                # Skip any £ signs above or at the header row (summary area)
                 if header_y is not None and y <= header_y:
                     continue
                 if x < boundary:
@@ -156,7 +137,6 @@ def _extract_starling_text(pdf):
                     pound_info[y] = []
                 pound_info[y].append((x, col))
 
-        # Extract text line by line using character positions
         chars_by_y = defaultdict(list)
         for c in page.chars:
             chars_by_y[round(c['top'])].append(c)
@@ -168,22 +148,11 @@ def _extract_starling_text(pdf):
             if not line_text:
                 continue
 
-            # Tag £ amounts with their column
             if y in pound_info and '£' in line_text:
                 cols = sorted(pound_info[y], key=lambda t: t[0])
-                # Process amounts left to right
                 tagged = line_text
-                offset = 0
                 for x_pos, col in cols:
                     if col in ('IN', 'OUT'):
-                        # Find the next £ in the remaining string
-                        search_start = 0
-                        for _ in range(cols.index((x_pos, col)) + 1):
-                            idx = tagged.find('£', search_start)
-                            if idx >= 0:
-                                search_start = idx + 1
-                        idx = tagged.find('£', 0)
-                        # Simple approach: find nth £ sign
                         pound_count = 0
                         target_idx = -1
                         for ci, ch in enumerate(tagged):
@@ -195,7 +164,6 @@ def _extract_starling_text(pdf):
                         if target_idx >= 0:
                             tag = f'[{col}]'
                             tagged = tagged[:target_idx] + tag + tagged[target_idx:]
-
                 line_text = tagged
 
             lines.append(line_text)
@@ -205,23 +173,54 @@ def _extract_starling_text(pdf):
     return full_text
 
 
+# ── HSBC detection & extraction ────────────────────────────────────
+
+def _is_hsbc(pdf):
+    """Detect HSBC PDFs."""
+    try:
+        text = pdf.pages[0].extract_text() or ''
+        return 'hsbc.co.uk' in text.lower() or 'HBUKGB' in text or 'HSBC UK' in text
+    except Exception:
+        return False
+
+
+def _clean_hsbc_numbers(text):
+    """
+    Fix HSBC PDF rendering quirk: spurious spaces inside numbers.
+    e.g. '26,61 0.15 D' -> '26,610.15 D'
+    """
+    text = re.sub(
+        r'(\d[\d,]*)\s+(\d+\.\d{2})',
+        lambda m: m.group(1).replace(' ', '') + m.group(2),
+        text
+    )
+    return text
+
+
+def _extract_hsbc_text(pdf):
+    """Extract HSBC PDFs using standard pdfplumber, then apply number normalisation."""
+    full_text = ''
+    for i, page in enumerate(pdf.pages):
+        full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
+    return _clean_hsbc_numbers(full_text)
+
+
 # ── Main extraction function ───────────────────────────────────────
 
 def extract_text(pdf_path):
     """
     Extract all text from a text-based PDF.
-    
-    Automatically detects bank-specific PDF formats:
-    - Lloyds: character-level y-position grouping (fixes interleaving)
-    - Starling: column-aware extraction (tags IN/OUT amounts)
-    - All others: standard pdfplumber extract_text()
+    Returns a tuple: (text: str, bank_name: str)
+    bank_name is one of: 'lloyds', 'starling', 'hsbc', 'unknown'
     """
     with pdfplumber.open(pdf_path) as pdf:
         if _needs_char_grouping(pdf):
-            return _extract_text_by_char_position(pdf)
+            return _extract_text_by_char_position(pdf), 'lloyds'
         if _is_starling(pdf):
-            return _extract_starling_text(pdf)
+            return _extract_starling_text(pdf), 'starling'
+        if _is_hsbc(pdf):
+            return _extract_hsbc_text(pdf), 'hsbc'
         full_text = ''
         for i, page in enumerate(pdf.pages):
             full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
-        return full_text
+        return full_text, 'unknown'
