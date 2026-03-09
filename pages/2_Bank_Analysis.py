@@ -327,7 +327,7 @@ if uploaded_files and st.session_state.bank_stage == "upload":
 
                         parsed['_filename'] = pdf_data['filename']
                         parsed['_page_count'] = pdf_data['page_count']
-                        st.write(parsed.get('metadata', {}))  # TEMP DEBUG
+                        st.session_state['debug_meta'] = parsed.get('metadata', {})  # TEMP DEBUG
                         parsed_statements.append(parsed)
                     except Exception as e:
                         rejected.append({
@@ -666,7 +666,8 @@ if st.session_state.bank_stage == "report" and st.session_state.bank_report_html
         st.session_state.bank_accepted = []
         st.session_state.bank_rejected = []
         st.rerun()
-
+if st.session_state.get('debug_meta'):
+    st.write("DEBUG METADATA:", st.session_state['debug_meta'])
 
 # ── Footer ─────────────────────────────────────────────────────────────────
 st.markdown("<hr>", unsafe_allow_html=True)
