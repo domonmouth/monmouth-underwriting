@@ -190,12 +190,13 @@ if uploaded_files and st.session_state.bank_stage == "upload":
                     rejected.append({"filename": uf.name, "reason": quality['reason']})
                     continue
 
-                text = extract_text(tmp_path)
+                text, bank_name = extract_text(tmp_path)
                 accepted.append({
                     "filename": uf.name,
                     "page_count": quality['page_count'],
                     "avg_chars_per_page": quality['avg_chars_per_page'],
                     "text": text,
+                    "bank_name": bank_name,
                 })
             except Exception as e:
                 rejected.append({"filename": uf.name, "reason": str(e)})
