@@ -8,6 +8,34 @@ parse_statement() for standalone/CLI usage.
 import json
 import os
 
+# ── Per-bank prompt hints ──────────────────────────────────────────
+# Each entry is injected into the prompt when the bank is detected.
+# Keep these focused on parsing conventions the LLM gets wrong without hints.
+
+BANK_HINTS = {
+    'lloyds': '',    # Lloyds handled at extraction layer; no extra prompt hints needed yet
+    'starling': '',  # Starling handled at extraction layer; no extra prompt hints needed yet
+    'hsbc': """
+HSBC STATEMENT RULES:
+- All balances are followed by 'D' to indicate a debit/overdraft balance (e.g. '23,853.72 D').
+  Always parse these as positive numbers. Do NOT negate them. The 'D' is not part of the number.
+- opening_balance and closing_balance in metadata must be positive numbers (e.g. 26610.15, not -26610.15).
+- 'BALANCE BROUGHT FORWARD' and 'BALANCE CARRIED FORWARD' lines are page markers — do NOT
+  include them as transactions.
+- The Account Summary box on page 1 shows opening_balance, closing_balance, total Payments In,
+  and total Payments Out. Use the opening_balance and closing_balance from this box for metadata.
+- Transaction types: CR = credit (money_in), DR = debit (money_out), DD = direct debit (money_out),
+  BP = bill payment (money_out), SO = standing order (money_out), VIS = Visa debit (money_out),
+  TFR = transfer (money_out unless context indicates otherwise).
+- PAYMENT CHARGE lines (e.g. 'PAYMENT CHARGE 7.00') belong to the preceding transaction's
+  description group but are separate money_out transactions — include them.
+- Non-Sterling Transaction Fee lines (e.g. 'DR Non-Sterling Transaction Fee 2.35') are separate
+  money_out transactions — include them.
+- Debit interest (e.g. 'DEBIT INTEREST TO 30JUN2025') and total charges are money_out transactions.
+""",
+    'unknown': '',
+}
+
 PARSE_PROMPT = """You are a bank statement parser. Extract every transaction from the bank statement text below and return them as a JSON array.
 
 Each transaction must have these exact fields:
@@ -68,14 +96,15 @@ column, it is money_in, regardless of whether it says "OnLine Transaction" or "A
 
 - Return only valid JSON, no explanation, no markdown, no code blocks
 
+{bank_hints}
+
 Bank statement text:
 {text}"""
 
 
-def parse_statement(text, filename='unknown', api_key=None):
+def parse_statement(text, filename='unknown', bank_name='unknown', api_key=None):
     """
     Send extracted PDF text to Claude API and get back structured transactions.
-    Returns a dict with metadata and transactions list.
     """
     import anthropic
 
@@ -84,7 +113,8 @@ def parse_statement(text, filename='unknown', api_key=None):
     else:
         client = anthropic.Anthropic()
 
-    prompt = PARSE_PROMPT.format(text=text)
+    hints = BANK_HINTS.get(bank_name, '')
+    prompt = PARSE_PROMPT.format(bank_hints=hints, text=text)
 
     response = client.messages.create(
         model="claude-sonnet-4-6",
