@@ -327,7 +327,10 @@ if uploaded_files and st.session_state.bank_stage == "upload":
 
                         parsed['_filename'] = pdf_data['filename']
                         parsed['_page_count'] = pdf_data['page_count']
-                        st.session_state['debug_meta'] = parsed.get('metadata', {})  # TEMP DEBUG
+                        st.session_state['debug_meta'] = {
+                        'metadata': parsed.get('metadata', {}),
+                        'first_5_tx': parsed.get('transactions', [])[:5]
+                        }  # TEMP DEBUG
                         parsed_statements.append(parsed)
                     except Exception as e:
                         rejected.append({
