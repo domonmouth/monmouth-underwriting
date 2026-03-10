@@ -51,19 +51,6 @@ def fix_first_transaction_double_count(parsed):
 
 
 
-def fix_hsbc_transaction_directions(parsed):
-    """
-    For HSBC overdraft statements, use the balance column to correct
-    money_in / money_out direction where the LLM got it wrong.
-    
-    Logic: if balance decreases (less overdrawn), money came IN.
-           if balance increases (more overdrawn), money went OUT.
-    Only corrects transactions where balance is present and non-zero,
-    and where exactly one of money_in/money_out is non-zero.
-    """
-    bank = parsed.get('_bank_name', '')
-    if bank != 'hsbc':
-        return parsed
 
     transactions = parsed.get('transactions', [])
     corrected = 0
@@ -118,7 +105,6 @@ def fix_hsbc_transaction_directions(parsed):
 def reconcile_statement(parsed):
     # Apply first-transaction double-count fix before reconciling
     parsed = fix_first_transaction_double_count(parsed)
-    parsed = fix_hsbc_transaction_directions(parsed)
     metadata = parsed.get('metadata', {})
     transactions = parsed.get('transactions', [])
     opening = metadata.get('opening_balance', 0)
