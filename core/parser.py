@@ -26,8 +26,7 @@ HSBC STATEMENT RULES:
   and total Payments Out. Use the opening_balance and closing_balance from this box for metadata.
 - Transaction types: CR = credit (money_in), DR = debit (money_out), DD = direct debit (money_out),
   BP = bill payment (money_out), SO = standing order (money_out), VIS = Visa debit (money_out),
-  TFR = transfer (money_out unless context indicates otherwise).
-- CR transactions are ALWAYS money_in (credits to the account). Never put a CR amount in money_out.
+  TFR = transfer — check the balance movement to determine direction: if balance decreases (less overdrawn) it is money_in, if balance increases (more overdrawn) it is money_out.- CR transactions are ALWAYS money_in (credits to the account). Never put a CR amount in money_out.
 - DR, DD, BP, SO, VIS, TFR transactions are ALWAYS money_out. Never put these amounts in money_in.
 - A balance getting smaller in D value (e.g. 27,000 D to 24,000 D) means money came IN.
 - A balance getting larger in D value (e.g. 24,000 D to 27,000 D) means money went OUT.
