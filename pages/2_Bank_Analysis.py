@@ -374,7 +374,10 @@ if st.session_state.bank_stage == "results":
     validation = st.session_state.bank_validation
     analytics  = st.session_state.bank_analytics
     parsed     = st.session_state.bank_parsed
-
+    with st.expander("🐛 Debug: raw parsed JSON"):
+            for s in parsed:
+                st.markdown(f"**{s.get('_filename', 'unknown')}**")
+                st.json(s)
     # ── Summary cards ──────────────────────────────────────────────────────
     months     = len(parsed)
     total_in   = sum(
