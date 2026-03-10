@@ -102,9 +102,58 @@ def fix_first_transaction_double_count(parsed):
 
     return parsed
 
+
+def fix_hsbc_transaction_directions(parsed):
+    """
+    For HSBC overdraft statements, use the balance column to correct
+    money_in / money_out direction where the LLM got it wrong.
+    Balance decreases (less overdrawn) = money came IN.
+    Balance increases (more overdrawn) = money went OUT.
+    Only corrects transactions where balance is present and non-zero,
+    and where exactly one of money_in/money_out is non-zero.
+    """
+    if parsed.get('_bank_name', '') != 'hsbc':
+        return parsed
+
+    transactions = parsed.get('transactions', [])
+    opening = parsed.get('metadata', {}).get('opening_balance', 0)
+    corrected = 0
+
+    # Build list of balances, filling in opening for first prev
+    prev_bal = opening
+    for tx in transactions:
+        bal = tx.get('balance', 0)
+        money_in = tx.get('money_in', 0) or 0
+        money_out = tx.get('money_out', 0) or 0
+
+        # Only process if we have a balance and exactly one non-zero amount
+        if bal and prev_bal and ((money_in > 0) != (money_out > 0)):
+            balance_change = bal - prev_bal  # positive = more overdrawn = OUT
+            if balance_change < -0.05:  # balance went down = money IN
+                if money_out > 0 and money_in == 0:
+                    tx['money_in'] = money_out
+                    tx['money_out'] = 0
+                    tx['_direction_corrected'] = True
+                    corrected += 1
+            elif balance_change > 0.05:  # balance went up = money OUT
+                if money_in > 0 and money_out == 0:
+                    tx['money_out'] = money_in
+                    tx['money_in'] = 0
+                    tx['_direction_corrected'] = True
+                    corrected += 1
+
+        if bal:
+            prev_bal = bal
+
+    if corrected:
+        parsed['_hsbc_direction_corrections'] = corrected
+
+    return parsed
+
 def reconcile_statement(parsed):
     # Apply first-transaction double-count fix before reconciling
     parsed = fix_first_transaction_double_count(parsed)
+    parsed = fix_hsbc_transaction_directions(parsed)
     metadata = parsed.get('metadata', {})
     transactions = parsed.get('transactions', [])
     opening = metadata.get('opening_balance', 0)
