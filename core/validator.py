@@ -151,25 +151,36 @@ def fix_hsbc_transaction_directions(parsed):
     return parsed
 
 def reconcile_statement(parsed):
-    # Apply first-transaction double-count fix before reconciling
     parsed = fix_first_transaction_double_count(parsed)
     parsed = fix_hsbc_transaction_directions(parsed)
+    
     metadata = parsed.get('metadata', {})
     transactions = parsed.get('transactions', [])
-    opening = metadata.get('opening_balance', 0)
     closing = metadata.get('closing_balance', 0)
+    opening = metadata.get('opening_balance', 0)
+
+    # Find last non-zero balance in transactions
+    last_balance = None
+    for tx in reversed(transactions):
+        bal = tx.get('balance', 0)
+        if bal and bal != 0:
+            last_balance = bal
+            break
+
+    # Also compute arithmetic closing for the summary cards (don't use for pass/fail)
     total_in  = sum(t.get('money_in', 0)  for t in transactions)
     total_out = sum(t.get('money_out', 0) for t in transactions)
-    expected_closing = opening + total_in - total_out
-    difference = abs(expected_closing - closing)
-    # Try swapped in/out (handles overdraft accounts where LLM may swap directions)
-    expected_closing_swapped = opening + total_out - total_in
-    difference_swapped = abs(expected_closing_swapped - closing)
-    if difference_swapped < difference:
-        expected_closing = expected_closing_swapped
-        total_in, total_out = total_out, total_in
-        difference = difference_swapped
+
+    if last_balance is not None:
+        difference = abs(last_balance - closing)
+        expected_closing = last_balance
+    else:
+        # No balances in transactions — fall back to arithmetic
+        expected_closing = opening + total_in - total_out
+        difference = abs(expected_closing - closing)
+
     passed = difference <= RECONCILIATION_TOLERANCE
+
     return {
         'passed': passed,
         'opening': opening,
