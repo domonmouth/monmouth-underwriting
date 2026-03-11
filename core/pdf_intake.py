@@ -26,6 +26,20 @@ def check_pdf_quality(pdf_path):
         return {'is_text_based': False, 'page_count': 0, 'avg_chars_per_page': 0, 'reason': f'Could not open PDF: {str(e)}'}
 
 
+def _is_transaction_page(page):
+    """
+    Returns True if this page contains transaction data.
+    Supports older bank formats (BBF/BCF markers) and
+    Lloyds Business format which uses 'BUSINESS ACCOUNT' header.
+    """
+    text = page.extract_text() or ''
+    if 'BALANCE BROUGHT FORWARD' in text or 'BALANCE CARRIED FORWARD' in text:
+        return True
+    if 'BUSINESS ACCOUNT' in text and 'Your Transactions' in text:
+        return True
+    return False
+
+
 def _needs_char_grouping(pdf):
     try:
         text = pdf.pages[0].extract_text() or ''
@@ -38,6 +52,8 @@ def _needs_char_grouping(pdf):
 def _extract_text_by_char_position(pdf):
     full_text = ''
     for i, page in enumerate(pdf.pages):
+        if not _is_transaction_page(page):
+            continue
         chars = page.chars
         if not chars:
             full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
