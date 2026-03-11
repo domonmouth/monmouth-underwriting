@@ -90,7 +90,7 @@ LENDER_REGISTRY = [
     {'name': 'Close Brothers',              'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['close brothers']},
     {'name': 'Lombard',                     'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['lombard']},
     {'name': 'Aldermore',                   'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['aldermore']},
-    {'name': 'Shawbrook',                  'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['shawbrook']},
+    {'name': 'Shawbrook',                   'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['shawbrook']},
     {'name': 'United Trust Bank',           'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['united trust']},
     {'name': 'Paragon Bank',                'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['paragon']},
     {'name': 'Haydock Finance',             'category': 'Asset Finance',       'product': 'Asset Finance / Leasing',   'keywords': ['haydock']},
@@ -133,7 +133,7 @@ LENDER_REGISTRY = [
     # ── INVOICE FINANCE / FACTORING / ABL ──
     {'name': 'Bibby Financial Services',    'category': 'Invoice Finance',     'product': 'Factoring / Discounting',   'keywords': ['bibby financial', 'bibby']},
     {'name': 'Close Brothers IF',           'category': 'Invoice Finance',     'product': 'Invoice Discounting',       'keywords': ['close brothers']},
-    {'name': 'IGF Invoice Finance',         'category': 'Invoice Finance',     'product': 'ABL',                       'keywords': ['igf']},
+    {'name': 'IGF Invoice Finance',         'category': 'Invoice Finance',     'product': 'ABL',                       'keywords': ['igf invoice', 'igf finance', 'igf']},
     {'name': 'Novuna Business Cash Flow',   'category': 'Invoice Finance',     'product': 'Factoring / Discounting',   'keywords': ['novuna']},
     {'name': 'Paragon Business Finance',    'category': 'Invoice Finance',     'product': 'Invoice Discounting',       'keywords': ['paragon']},
     {'name': 'ABN AMRO Commercial Finance', 'category': 'Invoice Finance',     'product': 'ABL',                       'keywords': ['abn amro']},
@@ -157,7 +157,7 @@ LENDER_REGISTRY = [
     {'name': 'Trade Plus 24',               'category': 'Invoice Finance',     'product': 'Selective IF',              'keywords': ['trade plus 24', 'tradeplus24']},
     {'name': 'Triver',                      'category': 'Invoice Finance',     'product': 'Invoice Finance',           'keywords': ['triver']},
     # ── TRADE / SUPPLIER FINANCE ──
-    {'name': 'Ebury',                       'category': 'Trade Finance',       'product': 'Supplier Finance / FX',     'keywords': ['ebury']},
+    {'name': 'Ebury',                       'category': 'Trade Finance',       'product': 'Supplier Finance / FX',     'keywords': ['ebury partners', 'ebury finance', 'ebury']},
     {'name': 'Lenkie',                      'category': 'Trade Finance',       'product': 'Supplier Finance RCF',      'keywords': ['lenkie']},
     {'name': 'Seneca',                      'category': 'Trade Finance',       'product': 'Supplier Finance',          'keywords': ['seneca']},
     {'name': 'Treyd',                       'category': 'Trade Finance',       'product': 'Purchase Order Finance',    'keywords': ['treyd']},
@@ -202,7 +202,7 @@ LENDER_REGISTRY = [
     {'name': 'Kuflink',                     'category': 'Bridging / Property', 'product': 'Bridging & P2P',            'keywords': ['kuflink']},
     {'name': 'Magnet Capital',              'category': 'Bridging / Property', 'product': 'Development',               'keywords': ['magnet capital']},
     {'name': 'Roma Finance',                'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['roma finance']},
-    {'name': 'MFS',                         'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['market financial', 'mfs']},
+    {'name': 'MFS',                         'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['market financial solutions', 'mfs bridging', 'mfs']},
     {'name': 'Fiduciam',                    'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['fiduciam']},
     {'name': 'Glenhawk',                    'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['glenhawk']},
     {'name': 'Ortus Secured Finance',       'category': 'Bridging / Property', 'product': 'Bridging',                  'keywords': ['ortus']},
@@ -220,7 +220,7 @@ LENDER_REGISTRY = [
     {'name': 'CapitalRise',                 'category': 'Development Finance', 'product': 'P2P Property',              'keywords': ['capitalrise']},
     {'name': 'Downing',                     'category': 'Development Finance', 'product': 'Development',               'keywords': ['downing']},
     # ── CORPORATE / GROWTH ──
-    {'name': 'FSE Group',                   'category': 'Corporate / Growth',  'product': 'Growth Finance',            'keywords': ['fse group', 'fse']},
+    {'name': 'FSE Group',                   'category': 'Corporate / Growth',  'product': 'Growth Finance',            'keywords': ['fse group']},
     {'name': 'Mercia',                      'category': 'Corporate / Growth',  'product': 'Venture / Growth',          'keywords': ['mercia']},
     {'name': 'Triple Point',                'category': 'Corporate / Growth',  'product': 'Venture Debt',              'keywords': ['triple point']},
     # ── HIGH STREET BANKS ──
@@ -240,7 +240,7 @@ LENDER_REGISTRY = [
     {'name': 'American Express',            'category': 'Credit Card',         'product': 'Business Credit Card',      'keywords': ['american express', 'amex']},
     {'name': 'Barclaycard',                 'category': 'Credit Card',         'product': 'Business Credit Card',      'keywords': ['barclaycard', 'bcard']},
     {'name': 'Capital One',                 'category': 'Credit Card',         'product': 'Business Credit Card',      'keywords': ['capital one']},
-    {'name': 'MBNA',                        'category': 'Credit Card',         'product': 'Credit Card',              'keywords': ['mbna']},
+    {'name': 'MBNA',                        'category': 'Credit Card',         'product': 'Credit Card',               'keywords': ['mbna']},
     # ── GOVERNMENT ──
     {'name': 'British Business Bank',       'category': 'Government',          'product': 'Guarantee Schemes',         'keywords': ['british business bank']},
     {'name': 'Start Up Loans Company',      'category': 'Government',          'product': 'Start-Up Finance',          'keywords': ['start up loans', 'startup loans']},
@@ -248,7 +248,7 @@ LENDER_REGISTRY = [
     # ── NEW: UNSECURED / REVOLVING / FINTECH ──
     {'name': 'Bizlend',                     'category': 'Unsecured Lending',   'product': 'Short-Term Loan',           'keywords': ['bizlend']},
     {'name': 'Haogen Finance',              'category': 'Unsecured Lending',   'product': 'Business Loan',             'keywords': ['haogen']},
-    {'name': 'NCF Finance',                 'category': 'Unsecured Lending',   'product': 'Business Finance',          'keywords': ['ncf finance', 'ncf']},
+    {'name': 'NCF Finance',                 'category': 'Unsecured Lending',   'product': 'Business Finance',          'keywords': ['ncf finance']},
     {'name': 'Invocap',                     'category': 'Unsecured Lending',   'product': 'Revenue-Based',             'keywords': ['invocap']},
     {'name': 'Multifi',                     'category': 'Unsecured Lending',   'product': 'B2B BNPL / Credit',         'keywords': ['multifi']},
     {'name': 'Lendco',                      'category': 'Unsecured Lending',   'product': 'Business Loan',             'keywords': ['lendco']},
@@ -281,8 +281,6 @@ LENDER_REGISTRY = [
 # ============================================================
 # DEBT COLLECTION / ENFORCEMENT REGISTRY
 # ============================================================
-# Presence of debt collection agencies on a bank statement is a
-# CRITICAL red flag — indicates unpaid debts being pursued.
 
 DEBT_COLLECTION_REGISTRY = [
     {'name': 'HCCI Credit Services',        'keywords': ['hcci']},
@@ -326,16 +324,6 @@ LENDER_FUZZY_KEYWORDS = [
     'term loan', 'short term loan', 'credit card',
 ]
 
-
-def match_lender(description):
-    """Check description against static lender registry. Returns lender dict or None."""
-    d = description.lower()
-    for lender in LENDER_REGISTRY:
-        if any(kw in d for kw in lender['keywords']):
-            return lender
-    return None
-
-
 # Phrases that contain fuzzy keywords but are NOT lenders (false positives)
 FUZZY_EXCLUSIONS = [
     'automated credit',       # standard bank transfer type
@@ -355,6 +343,25 @@ FUZZY_EXCLUSIONS = [
 ]
 
 
+# ── WORD-BOUNDARY MATCHING ──────────────────────────────────
+# Prevents short keywords (ldf, igf, ncf, mfs, fse) from matching
+# inside transaction reference numbers or unrelated words.
+
+def _word_match(keyword, text):
+    """Match keyword as whole word(s) within text (case-insensitive)."""
+    pattern = r'(?<![a-z0-9])' + re.escape(keyword) + r'(?![a-z0-9])'
+    return bool(re.search(pattern, text))
+
+
+def match_lender(description):
+    """Check description against static lender registry. Returns lender dict or None."""
+    d = description.lower()
+    for lender in LENDER_REGISTRY:
+        if any(_word_match(kw, d) for kw in lender['keywords']):
+            return lender
+    return None
+
+
 def match_suspected_lender(description):
     """Check description against fuzzy keywords. Returns True if suspected lender."""
     d = description.lower()
@@ -363,11 +370,52 @@ def match_suspected_lender(description):
     return any(kw in d for kw in LENDER_FUZZY_KEYWORDS)
 
 
+# ── COUNTERPARTY EXTRACTION ─────────────────────────────────
+# Strips payment method prefixes so suspected lender keys are
+# the actual counterparty name, not "DIRECT DEBIT PAYMENT TO".
+
+_COUNTERPARTY_PREFIXES = [
+    'bill payment via faster payment to ',
+    'faster payments receipt ref. from ',
+    'faster payments receipt ref.',
+    'direct debit payment to ',
+    'direct debit reversal ref ',
+    'bank giro credit ref ',
+    'card payment to ',
+    'transfer to ',
+    'transfer from ',
+    'credit from ',
+    'payment to ',
+    'payment from ',
+]
+
+def extract_counterparty(description):
+    """Strip payment method prefix to return the actual counterparty name.
+
+    Handles patterns like:
+      'DIRECT DEBIT PAYMENT TO SAN UK BUS LOANS REF ...'  → 'SAN UK BUS LOANS'
+      'BILL PAYMENT VIA FASTER PAYMENT TO PRESTIGE FINANCE REFERENCE ...' → 'PRESTIGE FINANCE'
+      'FASTER PAYMENTS RECEIPT REF.104827 FROM LDF FINANCE NO.3 L' → 'LDF FINANCE NO.3 L'
+    """
+    d = description.lower()
+    for prefix in _COUNTERPARTY_PREFIXES:
+        if d.startswith(prefix):
+            remainder = description[len(prefix):]
+            # For 'FASTER PAYMENTS RECEIPT REF.XXXXXXX FROM NAME' — strip leading ref+FROM
+            remainder = re.sub(r'^[\w\.\-]+ FROM ', '', remainder, flags=re.IGNORECASE)
+            # Trim trailing reference numbers / mandate info
+            remainder = re.split(
+                r'\s+(?:ref|reference|mandate no|,)\s*',
+                remainder, flags=re.IGNORECASE
+            )[0]
+            return remainder.strip()[:50]
+    return description[:40].strip()
+
+
 # ============================================================
 # BOUNCED / FAILED PAYMENT DETECTION
 # ============================================================
 
-# Layer 1: Exact string matching (high confidence)
 EXACT_BOUNCED_PATTERNS = [
     'unpaid dd', 'unpaid d/d', 'unpaid direct debit', 'unpaid ddr',
     'unp ddr', 'unp dd', 'd/d unpd', 'unpd dd', 'unpadd',
@@ -392,7 +440,6 @@ EXACT_OVERDRAFT_COST_PATTERNS = [
     'excess fee', 'unauthorised borrowing',
 ]
 
-# Layer 2: Tokenised fuzzy matching (medium confidence)
 FUZZY_GROUP_A = {'unpaid', 'unpd', 'unp', 'returned', 'return', 'rtn',
                  'failed', 'refused', 'rejected', 'bounced', 'rev',
                  'recalled', 'reversed'}
@@ -405,7 +452,6 @@ def _tokenise(text):
 
 
 def detect_bounced_payments(transactions):
-    """Three-layer detection of bounced/failed payments and bank stress fees."""
     confirmed_bounced = []
     confirmed_fees = []
     confirmed_od_costs = []
@@ -415,7 +461,6 @@ def detect_bounced_payments(transactions):
         d = tx['description'].lower()
         tokens = _tokenise(tx['description'])
 
-        # Layer 1: Exact pattern matching
         is_exact_bounced = any(p in d for p in EXACT_BOUNCED_PATTERNS)
         is_exact_fee = any(p in d for p in EXACT_FEE_PATTERNS)
         is_exact_od = any(p in d for p in EXACT_OVERDRAFT_COST_PATTERNS)
@@ -427,7 +472,6 @@ def detect_bounced_payments(transactions):
         elif is_exact_od:
             confirmed_od_costs.append({**tx, '_detection': 'exact_match', '_confidence': 'high'})
         else:
-            # Layer 2: Fuzzy token matching
             has_a = bool(tokens & FUZZY_GROUP_A)
             has_b = bool(tokens & FUZZY_GROUP_B)
             if has_a and has_b:
@@ -446,47 +490,48 @@ def detect_bounced_payments(transactions):
 # ============================================================
 # HMRC NDDS / TIME TO PAY DETECTION
 # ============================================================
-# HMRC has two direct debit systems on bank statements:
-#   HMRC SDDS — recurring auto-collection (PAYE via FPS). Normal.
-#   HMRC NDDS — one-off direct debits (Corp Tax, SA, PAYE, VAT).
-#              Also used for TTP instalment arrangements.
-#
-# A single HMRC NDDS payment is routine (paying Corp Tax or SA).
-# A TTP shows as REPEATED HMRC NDDS payments — typically monthly,
-# at fixed/similar amounts, on non-standard dates.
-#
-# Detection strategy:
-#   - 'time to pay', 'ttp', 'debt management' in description → immediate flag
-#   - 3+ HMRC NDDS payments in the period → flag as suspected TTP
-#   - 1-2 HMRC NDDS payments → normal, not flagged
 
 HMRC_TTP_EXPLICIT = ['time to pay', 'ttp', 'debt management']
 
 def detect_hmrc_ttp(transactions):
     """Detect HMRC Time to Pay / NDDS arrangements.
-    
-    Distinguishes routine HMRC NDDS payments (Corp Tax, SA) from
-    repeated instalment patterns that indicate a TTP arrangement.
+
+    Nets off same-day reversals before counting NDDS payments,
+    so a DD that goes out and comes back the same day doesn't
+    inflate the count toward the TTP threshold.
     """
     explicit_hits = []
     ndds_payments = []
+    ndds_reversals = set()  # mandate refs that were reversed
 
+    # First pass: collect all DD reversals by mandate ref number.
+    # Santander reversal descriptions drop the "HMRC" prefix, so match
+    # on ref number across all inbound reversals, not just HMRC-labelled ones.
+    for tx in transactions:
+        d = tx['description'].lower()
+        if ('reversal' in d or 'returned' in d) and tx.get('money_in', 0) > 0:
+            m = re.search(r'ref\s+(\d{10,})', d)
+            if m:
+                ndds_reversals.add(m.group(1))
+
+    # Second pass: collect NDDS outflows, excluding reversed ones
     for tx in transactions:
         d = tx['description'].lower()
         if 'hmrc' not in d:
             continue
-        # Explicit TTP language — always flag
         if any(p in d for p in HMRC_TTP_EXPLICIT):
             explicit_hits.append(tx)
-        # Collect all HMRC NDDS payments (outflows only)
         elif 'ndds' in d and tx.get('money_out', 0) > 0:
+            # Check if this payment's ref was subsequently reversed
+            m = re.search(r'ref\s+(\d{10,})', d)
+            ref = m.group(1) if m else None
+            if ref and ref in ndds_reversals:
+                continue  # reversed same-day — don't count
             ndds_payments.append(tx)
 
-    # 3+ HMRC NDDS outbound payments suggests TTP instalments
-    # (routine Corp Tax / SA would be 1-2 per period)
     suspected_ttp = ndds_payments if len(ndds_payments) >= 3 else []
-
     all_hits = explicit_hits + suspected_ttp
+
     return {
         'found': len(all_hits) > 0,
         'count': len(all_hits),
@@ -498,7 +543,7 @@ def detect_hmrc_ttp(transactions):
 
 
 # ============================================================
-# GAMBLING & SANCTIONS (unchanged — already generic)
+# GAMBLING & SANCTIONS
 # ============================================================
 
 GAMBLING_KEYWORDS = [
@@ -521,65 +566,54 @@ MIDDLE_EAST_KEYWORDS = [
 
 
 # ============================================================
-# CATEGORISATION ENGINE — fully generic, no hardcoded names
+# CATEGORISATION ENGINE
 # ============================================================
 
 def categorise(description, money_out, money_in, account_name='', connected_names=None):
-    """
-    Categorise a transaction. Uses lender registry, connected party names,
-    and generic keyword matching. No client-specific hardcoding.
-    """
     d = description.lower()
     connected_names = connected_names or []
 
     # ── INFLOWS ──
     if money_in > 0:
-        # Lender drawdown (not trading income)
         if match_lender(description):
             return 'Unsecured Loan Drawdowns'
-        # HMRC refunds
         if 'hmrc' in d and ('vat' in d or 'repay' in d or 'refund' in d):
             return 'HMRC Refunds (VAT)'
-        # Connected party inflows
         if connected_names and any(cn in d for cn in connected_names):
             return 'Connected Party Receipts'
-        # Returned/reversed DDs credited back
         if any(p in d for p in ['returned dd', 'returned d/d', 'returned direct debit',
                                 'unpaid direct debit', 'unpaid dd', 'unpaid d/d']):
             return 'Returned / Reversed Payments'
-        # Default inflow
         return 'Other Trading Receipts'
 
     # ── OUTFLOWS ──
-    # Lender repayments
     lender = match_lender(description)
     if lender:
         cat = lender.get('category', '')
         if cat == 'Asset Finance':
             return 'Asset Finance Repayments'
         return 'Unsecured Loan Repayments'
-    # HMRC (generic — no client-specific refs)
+
+    # FIX: fuzzy lender check for outflows not in static registry
+    if match_suspected_lender(description):
+        return 'Unsecured Loan Repayments'
+
     if 'hmrc' in d and any(w in d for w in ['paye', 'nic', 'cumbernauld', 'shipley', 'accounts office']):
         return 'HMRC PAYE / NIC'
     if 'hmrc' in d:
         return 'HMRC Payments'
-    # Pension (generic providers)
     if any(x in d for x in ['nest', 'peoplespartnership', 'peoples partnership',
                             'now pensions', 'smart pension', 'aviva pension',
                             'royal london', 'scottish widows', 'aegon']):
         return 'Pension'
     if 'sipp' in d or 'pension' in d:
         return 'Pension'
-    # Connected party outflows
     if connected_names and any(cn in d for cn in connected_names):
         return 'Director/Connected Party Payments Out'
-    # Bounced/failed payment fees
     if any(p in d for p in EXACT_BOUNCED_PATTERNS + EXACT_FEE_PATTERNS):
         return 'Unpaid Item Fees'
-    # Overdraft / bank charges
     if any(p in d for p in EXACT_OVERDRAFT_COST_PATTERNS):
         return 'Bank Charges & Subscriptions'
-    # Generic subscriptions / utilities
     if any(x in d for x in ['xero', 'gocardless', 'zoom', 'quickbooks', 'sage',
                             'microsoft', 'google', 'amazon web', 'mailchimp',
                             'hubspot', 'slack', 'dropbox']):
@@ -611,13 +645,11 @@ CAT_OUTFLOW = [
 
 
 # ============================================================
-# CONNECTED PARTY DETECTION — dynamic, fuzzy
+# CONNECTED PARTY DETECTION
 # ============================================================
 
 def _normalise_name(name):
-    """Normalise company/person name for fuzzy matching."""
     n = name.lower().strip()
-    # Strip common suffixes
     for suffix in [' limited', ' ltd', ' plc', ' llp', ' lp', ' inc',
                    ' corp', ' group', ' holdings', ' uk', ' (uk)']:
         n = n.replace(suffix, '')
@@ -625,43 +657,33 @@ def _normalise_name(name):
 
 
 def _name_tokens(name):
-    """Split name into significant tokens, dropping short/common words."""
     tokens = set(re.split(r'[\s\-&,\.]+', _normalise_name(name)))
     stop = {'the', 'and', 'of', 'for', 'in', 'at', 'mr', 'mrs', 'ms', 'dr', 'a'}
     return {t for t in tokens if len(t) > 1 and t not in stop}
 
 
 def build_connected_names(account_name, director_names=None):
-    """
-    Build list of lowercased name fragments for connected party matching.
-    account_name: from statement metadata
-    director_names: list of strings from CH API (optional)
-    """
     names = []
-    # Account holder name fragments
     if account_name:
         norm = _normalise_name(account_name)
         if norm:
             names.append(norm)
-            # Also add individual significant tokens (e.g. 'mobius' from 'Mobius Industries')
+            # FIX: lowered threshold from 4 to 3 chars to catch short tokens (e.g. 'zen')
             for tok in _name_tokens(account_name):
-                if len(tok) >= 4:  # Only tokens 4+ chars to avoid false positives
+                if len(tok) >= 3:
                     names.append(tok)
-    # Director/PSC names
     if director_names:
         for dn in director_names:
             norm = _normalise_name(dn)
             if norm:
                 names.append(norm)
-                # Add surname (last token) if multi-word
                 parts = norm.split()
-                if len(parts) >= 2 and len(parts[-1]) >= 4:
+                if len(parts) >= 2 and len(parts[-1]) >= 3:
                     names.append(parts[-1])
     return list(set(names))
 
 
 def find_connected_parties(transactions, connected_names):
-    """Find connected party transactions using dynamic name matching."""
     out = []
     inp = []
     for tx in transactions:
@@ -701,7 +723,6 @@ def merge_statements(parsed_statements, connected_names=None):
                     account_name=account_name,
                     connected_names=connected_names,
                 )
-                # Tag lender matches
                 lender = match_lender(tx['description'])
                 tx['_lender'] = lender['name'] if lender else None
                 tx['_suspected_lender'] = (
@@ -752,16 +773,18 @@ def get_statement_metadata(parsed_statements):
 # ============================================================
 
 def assign_month_index(date_str, period_start, n_months):
+    """Returns month index (0-based), or None if outside period."""
     for fmt in ('%d/%m/%y', '%d/%m/%Y'):
         try:
             d = datetime.strptime(date_str, fmt)
             months_diff = (d.year - period_start.year) * 12 + (d.month - period_start.month)
+            # FIX: return None for out-of-range rather than silently clamping
             if 0 <= months_diff < n_months:
                 return months_diff
-            return max(0, min(months_diff, n_months - 1))
+            return None
         except ValueError:
             continue
-    return 0
+    return None
 
 
 def build_monthly_buckets(transactions, period_start, n_months):
@@ -770,6 +793,9 @@ def build_monthly_buckets(transactions, period_start, n_months):
     monthly_out = [0.0] * n_months
     for tx in transactions:
         idx = assign_month_index(tx['date'], period_start, n_months)
+        # FIX: skip transactions that fall outside the period (None index)
+        if idx is None:
+            continue
         cat = tx.get('category', 'Other Outgoings')
         if tx['money_in'] > 0:
             if cat in monthly:
@@ -783,7 +809,7 @@ def build_monthly_buckets(transactions, period_start, n_months):
 
 
 # ============================================================
-# DAILY BALANCE SERIES — fixed for overdraft accounts
+# DAILY BALANCE SERIES
 # ============================================================
 
 def build_daily_series(transactions, opening_balance, period_start, period_end):
@@ -792,8 +818,8 @@ def build_daily_series(transactions, opening_balance, period_start, period_end):
         for fmt in ('%d/%m/%y', '%d/%m/%Y'):
             try:
                 d = datetime.strptime(tx['date'], fmt)
-                # Record ALL balances including negative (overdraft)
-                if tx.get('balance', 0) != 0:
+                # FIX: use explicit None check — balance of £0.00 is valid
+                if tx.get('balance') is not None:
                     date_bal[d] = tx['balance']
                 break
             except ValueError:
@@ -855,17 +881,17 @@ def principal_to_pmt(principal, r=MONTHLY_RATE, n=N_MONTHS):
 
 def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels=None,
                        avg_daily_balance=0):
-    """Calculate both unadjusted and adjusted affordability.
-    Now also considers persistent overdraft status via avg_daily_balance.
-    """
     n = len(monthly_in)
 
-    # --- UNADJUSTED (all receipts included) ---
+    # FIX: use actual window size — avoids dividing by 3 when fewer than 3 months available
+    window = min(3, n)
+
+    # --- UNADJUSTED ---
     unadj_avg_in_full  = sum(monthly_in) / n
     unadj_avg_out_full = sum(monthly_out) / n
     unadj_surplus_full = unadj_avg_in_full - unadj_avg_out_full
-    unadj_avg_in_3m    = sum(monthly_in[-3:]) / 3
-    unadj_avg_out_3m   = sum(monthly_out[-3:]) / 3
+    unadj_avg_in_3m    = sum(monthly_in[-window:]) / window
+    unadj_avg_out_3m   = sum(monthly_out[-window:]) / window
     unadj_surplus_3m   = unadj_avg_in_3m - unadj_avg_out_3m
 
     unadj_max_pmt_full = max(0, unadj_surplus_full / DSCR_BUFFER)
@@ -875,7 +901,7 @@ def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels
     unadj_max_loan_full_zero = min(MAX_LOAN, pmt_to_principal(max(0, unadj_surplus_full)))
     unadj_max_loan_3m_zero   = min(MAX_LOAN, pmt_to_principal(max(0, unadj_surplus_3m)))
 
-    # --- ADJUSTED (anomalous receipts excluded) ---
+    # --- ADJUSTED ---
     adj_in = list(monthly_in)
     if anomalous_txs and month_labels:
         for atx in anomalous_txs:
@@ -887,8 +913,8 @@ def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels
     adj_avg_in_full  = sum(adj_in) / n
     adj_avg_out_full = sum(monthly_out) / n
     adj_surplus_full = adj_avg_in_full - adj_avg_out_full
-    adj_avg_in_3m    = sum(adj_in[-3:]) / 3
-    adj_avg_out_3m   = sum(monthly_out[-3:]) / 3
+    adj_avg_in_3m    = sum(adj_in[-window:]) / window
+    adj_avg_out_3m   = sum(monthly_out[-window:]) / window
     adj_surplus_3m   = adj_avg_in_3m - adj_avg_out_3m
 
     adj_max_pmt_full = max(0, adj_surplus_full / DSCR_BUFFER)
@@ -915,7 +941,6 @@ def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels
     total_excluded = sum(atx['money_in'] for atx in (anomalous_txs or []))
 
     return {
-        # Unadjusted
         'unadj_avg_in_full':        round(unadj_avg_in_full),
         'unadj_avg_out_full':       round(unadj_avg_out_full),
         'unadj_surplus_full':       round(unadj_surplus_full),
@@ -928,7 +953,6 @@ def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels
         'unadj_max_loan_3m_dscr':   round(unadj_max_loan_3m_dscr   / 100) * 100,
         'unadj_max_loan_full_zero': round(unadj_max_loan_full_zero  / 100) * 100,
         'unadj_max_loan_3m_zero':   round(unadj_max_loan_3m_zero    / 100) * 100,
-        # Adjusted
         'avg_in_full':        round(adj_avg_in_full),
         'avg_out_full':       round(adj_avg_out_full),
         'surplus_full':       round(adj_surplus_full),
@@ -941,7 +965,6 @@ def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels
         'max_loan_3m_dscr':   round(adj_max_loan_3m_dscr   / 100) * 100,
         'max_loan_full_zero': round(adj_max_loan_full_zero  / 100) * 100,
         'max_loan_3m_zero':   round(adj_max_loan_3m_zero    / 100) * 100,
-        # Reference
         'pmt_10k':            round(pmt_10k),
         'pmt_25k':            round(pmt_25k),
         'pmt_50k':            round(pmt_50k),
@@ -949,7 +972,6 @@ def calc_affordability(monthly_in, monthly_out, anomalous_txs=None, month_labels
         'monthly_rate':       MONTHLY_RATE,
         'n_months':           N_MONTHS,
         'total_excluded':     round(total_excluded),
-        # Overdraft
         'persistent_overdraft': persistent_overdraft,
         'overdraft_warning':    overdraft_warning,
     }
@@ -978,7 +1000,6 @@ def check_sanctions(transactions):
 
 
 def check_salary_consistency(transactions, month_labels):
-    """Generic HMRC PAYE detection — no client-specific refs."""
     n = len(month_labels)
     paye_by_month = [0.0] * n
     for tx in transactions:
@@ -1008,7 +1029,6 @@ def check_salary_consistency(transactions, month_labels):
 
 
 def check_low_balance_days(daily_series):
-    """Fixed: now correctly handles negative (overdraft) balances."""
     negative   = [(d.strftime('%d/%m/%y'), b) for d, b in daily_series if b < 0]
     below_2k   = [(d.strftime('%d/%m/%y'), b) for d, b in daily_series if 0 <= b < 2000]
     below_5k   = [(d.strftime('%d/%m/%y'), b) for d, b in daily_series if 0 <= b < 5000]
@@ -1024,14 +1044,14 @@ def check_low_balance_days(daily_series):
 
 
 def find_lenders(transactions):
-    """Dynamic lender detection using full registry + suspected lender fuzzy matching."""
+    """Dynamic lender detection using full registry + fuzzy matching.
+    Uses extract_counterparty() so suspected lender keys are the actual
+    counterparty name rather than the payment method prefix.
+    """
     confirmed = {}
     suspected = {}
 
     for tx in transactions:
-        d = tx['description'].lower()
-
-        # Check static registry
         lender = match_lender(tx['description'])
         if lender:
             key = lender['name']
@@ -1054,10 +1074,9 @@ def find_lenders(transactions):
                 confirmed[key]['count_in'] += 1
             continue
 
-        # Fuzzy keyword check for suspected lenders
         if match_suspected_lender(tx['description']):
-            # Extract counterparty name (first 30 chars as proxy)
-            short = tx['description'][:30].strip()
+            # FIX: use extract_counterparty() instead of raw [:30] slice
+            short = extract_counterparty(tx['description'])
             if short not in suspected:
                 suspected[short] = {
                     'name': short,
@@ -1076,19 +1095,15 @@ def find_lenders(transactions):
                 suspected[short]['transactions_in'].append(tx)
                 suspected[short]['count_in'] += 1
 
-    return {
-        'confirmed': confirmed,
-        'suspected': suspected,
-    }
+    return {'confirmed': confirmed, 'suspected': suspected}
 
 
 def find_debt_collectors(transactions):
-    """Detect payments to/from known debt collection and enforcement agencies."""
     collectors = {}
     for tx in transactions:
         d = tx['description'].lower()
         for entry in DEBT_COLLECTION_REGISTRY:
-            if any(kw in d for kw in entry['keywords']):
+            if any(_word_match(kw, d) for kw in entry['keywords']):
                 key = entry['name']
                 if key not in collectors:
                     collectors[key] = {
@@ -1102,7 +1117,7 @@ def find_debt_collectors(transactions):
                     collectors[key]['total_out'] += tx['money_out']
                 if tx.get('money_in', 0) > 0:
                     collectors[key]['total_in'] += tx['money_in']
-                break  # one match per transaction
+                break
     return collectors
 
 
@@ -1117,10 +1132,6 @@ def find_top_transactions(transactions, n=5):
 # ============================================================
 
 def run_analytics(parsed_statements, director_names=None):
-    """
-    Main analytics pipeline. Now accepts optional director_names from CH API
-    for connected party detection.
-    """
     meta_list = get_statement_metadata(parsed_statements)
     if not meta_list:
         return None
@@ -1133,13 +1144,9 @@ def run_analytics(parsed_statements, director_names=None):
     account_number = meta_list[0]['account_number']
     sort_code      = meta_list[0]['sort_code']
 
-    # Build connected party names dynamically
     connected_names = build_connected_names(account_name, director_names)
-
-    # Merge and categorise transactions
     transactions = merge_statements(parsed_statements, connected_names)
 
-    # Month labels
     month_labels = []
     seen_months = set()
     for meta in meta_list:
@@ -1155,11 +1162,9 @@ def run_analytics(parsed_statements, director_names=None):
                 d = d.replace(month=d.month + 1, day=1)
     n_months = len(month_labels)
 
-    # Monthly buckets
     monthly, monthly_in, monthly_out = build_monthly_buckets(transactions, period_start, n_months)
     closing_bals = [m['closing_balance'] for m in meta_list]
 
-    # Daily balance series (fixed for overdrafts)
     daily_series = build_daily_series(transactions, opening_bal, period_start, period_end)
     daily_vals   = [b for _, b in daily_series]
     avg_bal_full = round(sum(daily_vals) / len(daily_vals)) if daily_vals else 0
@@ -1167,20 +1172,13 @@ def run_analytics(parsed_statements, director_names=None):
     daily_3m = [b for d, b in daily_series if d >= cutoff]
     avg_bal_3m = round(sum(daily_3m) / len(daily_3m)) if daily_3m else 0
 
-    # Intra-month profile
     intramonth_data, avg_intramonth = build_intramonth_profile(daily_series, meta_list)
-
-    # Lender detection (full registry + fuzzy)
     lenders = find_lenders(transactions)
-
-    # Debt collection / enforcement detection
     debt_collectors = find_debt_collectors(transactions)
 
-    # Anomaly detection — large inflows + ALL lender drawdowns
     avg_monthly_in = sum(monthly_in) / n_months if n_months else 0
     anomalous_txs = []
 
-    # Flag lender drawdowns as anomalous regardless of size
     for tx in transactions:
         if tx.get('money_in', 0) > 0 and tx.get('_lender'):
             for fmt in ('%d/%m/%y', '%d/%m/%Y'):
@@ -1197,7 +1195,6 @@ def run_analytics(parsed_statements, director_names=None):
                 except ValueError:
                     continue
 
-    # Flag large inflows exceeding 2× avg (existing logic)
     already_flagged = {(a['date'], a['description']) for a in anomalous_txs}
     large_inflows = sorted(
         [t for t in transactions if t['money_in'] > avg_monthly_in * 2],
@@ -1220,7 +1217,6 @@ def run_analytics(parsed_statements, director_names=None):
             except ValueError:
                 continue
 
-    # Legacy single-anomaly fields (backward compat)
     anomaly_amount    = 0
     anomaly_month_idx = None
     if large_inflows:
@@ -1236,7 +1232,6 @@ def run_analytics(parsed_statements, director_names=None):
             except ValueError:
                 continue
 
-    # Affordability (with overdraft awareness)
     affordability = calc_affordability(
         monthly_in, monthly_out,
         anomalous_txs=anomalous_txs,
@@ -1244,25 +1239,25 @@ def run_analytics(parsed_statements, director_names=None):
         avg_daily_balance=avg_bal_full,
     )
 
-    # Credit checks
     gambling      = check_gambling(transactions)
     sanctions     = check_sanctions(transactions)
     salary        = check_salary_consistency(transactions, month_labels)
     low_balance   = check_low_balance_days(daily_series)
     top_in, top_out = find_top_transactions(transactions)
     connected_out, connected_in = find_connected_parties(transactions, connected_names)
-
-    # Bounced payment detection (3-layer)
     bounced = detect_bounced_payments(transactions)
-
-    # HMRC TTP detection
     hmrc_ttp = detect_hmrc_ttp(transactions)
 
-    # Existing debt service — dynamic across ALL confirmed lenders
+    # FIX: divide each lender's total by the number of months it was actually
+    # active (count_out > 0) rather than the full statement period, to avoid
+    # understating monthly commitment for lenders that joined mid-period.
     confirmed_lenders = lenders.get('confirmed', {})
-    existing_debt_service = sum(
-        v['total_out'] / n_months for v in confirmed_lenders.values()
-    ) if n_months else 0
+    existing_debt_service = 0
+    for v in confirmed_lenders.values():
+        active_months = max(1, v['count_out'])
+        # Cap at n_months so we don't divide by more payments than months
+        active_months = min(active_months, n_months)
+        existing_debt_service += v['total_out'] / active_months
 
     return {
         'account_name': account_name, 'account_number': account_number,
@@ -1292,7 +1287,6 @@ def run_analytics(parsed_statements, director_names=None):
         'top_in': top_in, 'top_out': top_out,
         'connected_out': connected_out, 'connected_in': connected_in,
         'connected_names': connected_names,
-        # Legacy compat — report_builder still references failed_dds
         'failed_dds': {
             'count': bounced['total_confirmed'] + bounced['total_suspected'],
             'transactions': bounced['confirmed_bounced'] + bounced['suspected_bounced'],
