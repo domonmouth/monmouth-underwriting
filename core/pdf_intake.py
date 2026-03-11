@@ -26,16 +26,6 @@ def check_pdf_quality(pdf_path):
         return {'is_text_based': False, 'page_count': 0, 'avg_chars_per_page': 0, 'reason': f'Could not open PDF: {str(e)}'}
 
 
-def _is_transaction_page(page):
-    """
-    Returns True if this page contains transaction data.
-    Every transaction page has at least one balance marker.
-    Boilerplate pages (T&Cs, FSCS info sheet, exclusions list) have neither.
-    """
-    text = page.extract_text() or ''
-    return 'BALANCE BROUGHT FORWARD' in text or 'BALANCE CARRIED FORWARD' in text
-
-
 def _needs_char_grouping(pdf):
     try:
         text = pdf.pages[0].extract_text() or ''
@@ -48,8 +38,6 @@ def _needs_char_grouping(pdf):
 def _extract_text_by_char_position(pdf):
     full_text = ''
     for i, page in enumerate(pdf.pages):
-        if not _is_transaction_page(page):
-            continue
         chars = page.chars
         if not chars:
             full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
@@ -105,8 +93,6 @@ def _extract_starling_text(pdf):
     if not col_info:
         full_text = ''
         for i, page in enumerate(pdf.pages):
-            if not _is_transaction_page(page):
-                continue
             full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
         return full_text
 
@@ -114,9 +100,6 @@ def _extract_starling_text(pdf):
 
     full_text = ''
     for i, page in enumerate(pdf.pages):
-        if not _is_transaction_page(page):
-            continue
-
         header_y = None
         chars_by_y_hdr = defaultdict(list)
         for c in page.chars:
@@ -286,8 +269,6 @@ def _extract_hsbc_text(pdf):
     if not col_boundaries:
         full_text = ''
         for i, page in enumerate(pdf.pages):
-            if not _is_transaction_page(page):
-                continue
             full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
         return _clean_hsbc_numbers(full_text)
 
@@ -298,9 +279,6 @@ def _extract_hsbc_text(pdf):
 
     full_text = ''
     for i, page in enumerate(pdf.pages):
-        if not _is_transaction_page(page):
-            continue
-
         # Find header_y on this page
         header_y = None
         chars_by_y_hdr = defaultdict(list)
@@ -347,10 +325,7 @@ def extract_text(pdf_path):
             return _extract_starling_text(pdf), 'starling'
         if _is_hsbc(pdf):
             return _extract_hsbc_text(pdf), 'hsbc'
-        # Unknown bank — apply boilerplate filter too
         full_text = ''
         for i, page in enumerate(pdf.pages):
-            if not _is_transaction_page(page):
-                continue
             full_text += f'\n--- PAGE {i+1} ---\n{page.extract_text() or ""}'
         return full_text, 'unknown'
